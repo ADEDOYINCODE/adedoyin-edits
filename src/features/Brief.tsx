@@ -132,10 +132,7 @@ export function Brief({ p, update }: { p: Project; update: Update }) {
   };
   return (
     <>
-      <Section
-        title="Say it with conviction"
-        eyebrow="01 / THE CREATIVE DIRECTION"
-      >
+      <Section title="Direction & editor notes" eyebrow="CLIENT BRIEF">
         <Field label="Vision statement">
           <textarea
             rows={4}
@@ -249,7 +246,7 @@ export function Brief({ p, update }: { p: Project; update: Update }) {
         sandbox="allow-same-origin allow-scripts allow-downloads allow-modals"
       />
       <Section
-        title="A direction worth keeping"
+        title="Saved versions"
         eyebrow="02 / VERSION HISTORY"
         action={<History size={20} />}
       >
@@ -305,10 +302,7 @@ export function Brief({ p, update }: { p: Project; update: Update }) {
           );
         })}
       </Section>
-      <Section
-        title="From direction to execution"
-        eyebrow="03 / EDITING HANDOFF"
-      >
+      <Section title="Editing handoff" eyebrow="03 / EDITING HANDOFF">
         <p>
           Copy the system into project notes. Create a color-control layer in
           After Effects, or save these values in your Premiere project notes and

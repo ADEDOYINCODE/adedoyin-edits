@@ -5,7 +5,6 @@ import {
   Layers,
   Settings,
   Command,
-  ArrowLeft,
   PanelRight,
   Sun,
   Moon,
@@ -50,10 +49,31 @@ export default function App() {
           className="brand"
           onClick={() => ui.set({ project: null, page: "projects" })}
         >
-          <span className="brand-icon">✳</span>
+          <svg
+            className="brand-mark"
+            width="28"
+            height="28"
+            viewBox="0 0 28 28"
+            aria-hidden="true"
+          >
+            <rect
+              x="2"
+              y="2"
+              width="24"
+              height="24"
+              rx="3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M8 8H20M8 14H17M8 20H14"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+          </svg>
           <span>
-            style<span className="brand-serif">foundry</span>
-            <small>CREATIVE DIRECTION, DEFINED.</small>
+            Style Foundry<small>Studio workspace</small>
           </span>
         </button>
         <div className="workspace-label">WORKSPACE</div>
@@ -76,23 +96,33 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <span>✳</span>
-          <p>
-            Less guessing.
-            <br />
-            More intention.
-          </p>
-          <small>
-            Your next great edit
-            <br />
-            starts before the timeline.
-          </small>
-        </div>
+        <div className="recent-projects">
+          <div className="workspace-label">RECENT PROJECTS</div>
+          {[...projects]
+            .filter((p) => !p.archived)
+            .sort((a, b) => b.updated.localeCompare(a.updated))
+            .slice(0, 5)
+            .map((p) => (
+              <button
+                className={ui.project === p.id ? "current" : ""}
+                key={p.id}
+                onClick={() =>
+                  ui.set({ page: "projects", project: p.id, tab: "Overview" })
+                }
+              >
+                <span style={{ background: p.palette[0] }} />
+                <span>
+                  {p.client}
+                  <small>{p.name}</small>
+                </span>
+              </button>
+            ))}
+          {!projects.length && <p>No projects yet</p>}
+        </div>{" "}
         <div className="sidebar-bottom">
           <div>
             <ShieldCheck size={15} />
-            <span>Private by design</span>
+            <span>Stored on this device</span>
             <i />
           </div>
           <button
@@ -110,10 +140,17 @@ export default function App() {
             Switch to {settings?.theme === "dark" ? "light" : "dark"}
           </button>
           <p>
-            <span className="avatar">AE</span>
+            <span className="avatar">
+              {(settings?.brand || "Studio")
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((n) => n[0])
+                .join("")
+                .toUpperCase()}
+            </span>
             <span>
               {settings?.brand}
-              <small>Independent creative</small>
+              <small>Local workspace</small>
             </span>
           </p>
         </div>
@@ -135,13 +172,13 @@ export default function App() {
           </div>
           <div>
             <span className="local-dot" />
-            All changes saved locally
+            Local workspace
             <button
               className="command-button"
               onClick={() => ui.set({ command: true })}
             >
               <Search size={15} />
-              <kbd>⌘ K</kbd>
+              <kbd>Ctrl K</kbd>
             </button>
           </div>
         </header>
@@ -163,8 +200,14 @@ export default function App() {
           </Suspense>
         </main>
         <footer>
-          STYLE FOUNDRY <span>A little structure. A lot of possibility.</span>
-          <span>YOUR TASTE. YOUR DIRECTION.</span>
+          <span>Style Foundry</span>
+          <span>Project data stays in your browser.</span>
+          <button
+            className="text-button"
+            onClick={() => ui.set({ page: "settings", project: null })}
+          >
+            Backup & settings
+          </button>
         </footer>
       </div>
       {ui.toast && (

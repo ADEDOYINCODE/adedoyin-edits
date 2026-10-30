@@ -1,4 +1,6 @@
-# A direction in one sitting
+# Style Foundry workflow
+
+On Windows, double-click **START-STYLE-FOUNDRY.cmd** after extracting the project. Node.js LTS must be installed. The launcher opens http://localhost:5173; use the same browser/profile as before to keep access to local projects.
 
 ## 1. Start with the client (2 minutes)
 

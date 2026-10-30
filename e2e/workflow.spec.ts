@@ -8,9 +8,7 @@ test("complete local creative direction workflow and portable deliverables", asy
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: /Good work starts/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Projects/ })).toBeVisible();
   await page.screenshot({
     path: "/tmp/style-foundry-dashboard.png",
     fullPage: true,
@@ -53,7 +51,7 @@ test("complete local creative direction workflow and portable deliverables", asy
   const publicPage = await context.newPage();
   await publicPage.setContent(await readFile(clientPath, "utf8"));
   await expect(
-    publicPage.getByRole("heading", { name: /visual language/ }),
+    publicPage.getByRole("heading", { name: /Editing style questionnaire/ }),
   ).toBeVisible();
   // Required reasons and take fields are enforced in the standalone form.
   expect(
@@ -137,7 +135,7 @@ test("complete local creative direction workflow and portable deliverables", asy
   const brief = await context.newPage();
   await brief.setContent(await readFile("/tmp/ada-brief.html", "utf8"));
   await expect(
-    brief.getByRole("heading", { name: "A shared visual language." }),
+    brief.getByRole("heading", { name: "Direction", exact: true }),
   ).toBeVisible();
   await brief.getByLabel("Your name").fill("Ada");
   await brief.getByLabel("Approve this direction").check();
@@ -173,9 +171,7 @@ test("complete local creative direction workflow and portable deliverables", asy
     page.getByRole("heading", { name: "Restore this workspace?" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Replace from backup" }).click();
-  await expect(
-    page.getByRole("heading", { name: /Good work starts/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Projects/ })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "The next chapter", exact: true }),
   ).toBeVisible();
@@ -193,9 +189,7 @@ test("complete local creative direction workflow and portable deliverables", asy
 test("mobile hub and keyboard navigation", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: /Good work starts/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Projects/ })).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

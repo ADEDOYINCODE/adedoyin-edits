@@ -32,3 +32,7 @@ No backend: sharing means downloading a standalone HTML file and sending it; rec
 ## Completion record
 
 M1–M8 are implemented. Each M1–M7 feature milestone has its own commit; M8 records the integrated polish, performance, offline, accessibility, documentation, and final validation pass. The final application includes the original Marcus Cole demo, portable client forms/briefs, schema-validated atomic restore, thumbnail-preserving backups, and no remote service dependency. See VALIDATION.md for executed checks, measured limits, and supported sharing/printing assumptions.
+
+## v1.1 design revision
+
+Following user feedback, the interface now prioritizes project work over promotional presentation. The dashboard uses actual board imagery, an actionable next step, sorting and grid/list views; navigation includes recent projects. The visual system uses neutral graphite, a restrained warm accent, larger labels, and consistent sans-serif type. Client documents use project titles, visual studies, explicit specifications, and numbered editorial sections. Existing browser data and the versioned backup format remain compatible. A Windows launcher removes the need to copy terminal URLs. Validation and previews are recorded in VALIDATION.md and docs/.

@@ -86,7 +86,7 @@ test("image workflow, color extraction, font scan, annotations and raster export
   await expect(
     page
       .frameLocator("iframe")
-      .getByRole("heading", { name: "A shared visual language." }),
+      .getByRole("heading", { name: "Direction", exact: true }),
   ).toBeVisible();
   const briefPNG = page.waitForEvent("download");
   await page.getByRole("button", { name: "PNG", exact: true }).click();
@@ -117,7 +117,7 @@ test("image workflow, color extraction, font scan, annotations and raster export
     .getByRole("button", { name: "Style library", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: /make you look twice/ }),
+    page.getByRole("heading", { name: /^Style library$/ }),
   ).toBeVisible();
   const files = Array.from({ length: 50 }, (_, i) => ({
     ...file,
@@ -141,9 +141,7 @@ test("virtualized 2,000 images and 10,000 indexed fonts remain searchable", asyn
   page,
 }) => {
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: /Good work starts/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Projects/ })).toBeVisible();
   await page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const r = indexedDB.open("style-foundry");

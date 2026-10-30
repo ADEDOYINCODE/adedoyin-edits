@@ -108,10 +108,7 @@ export function Fonts({ p, update }: { p: Project; update: Update }) {
   };
   return (
     <>
-      <Section
-        title="Three voices. One direction."
-        eyebrow="01 / PROJECT FONT STACK"
-      >
+      <Section title="Project font stack" eyebrow="01 / PROJECT FONT STACK">
         <p>
           Pair contrast in classification and weight. Keep the accent for the
           moments that deserve it.
@@ -135,7 +132,7 @@ export function Fonts({ p, update }: { p: Project; update: Update }) {
                 className="font-specimen"
                 style={{ fontFamily: font, color: p.palette[0], fontSize: 30 }}
               >
-                Aa <span style={{ fontSize: 16 }}>Make it matter.</span>
+                Aa <span style={{ fontSize: 16 }}>Headline preview</span>
               </div>
             </Field>
           ))}
@@ -181,7 +178,7 @@ export function Fonts({ p, update }: { p: Project; update: Update }) {
         </div>
       </Section>
       <Section
-        title="Your type collection"
+        title="Local font library"
         eyebrow="02 / LOCAL FONT INDEX"
         action={
           <button onClick={() => folder.current?.click()}>
@@ -290,7 +287,7 @@ export function Fonts({ p, update }: { p: Project; update: Update }) {
         </div>
       </Section>
       <Section
-        title="Seen a typeface you love?"
+        title="Identify a font"
         eyebrow="03 / IDENTIFY WITHOUT UPLOADING HERE"
       >
         <div className="grid-2">

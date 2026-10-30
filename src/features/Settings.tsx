@@ -18,18 +18,14 @@ export function Settings() {
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">MAKE IT YOURS. KEEP IT YOURS.</span>
-          <h1>
-            A small studio.
-            <br />
-            <em>A considered system.</em>
-          </h1>
-          <p>Your brand on the outside. Your data on your device.</p>
+          <span className="eyebrow">WORKSPACE</span>
+          <h1>Settings</h1>
+          <p>Branding, appearance, backups, and library categories.</p>
         </div>
         <Shield size={38} color="var(--accent)" />
       </div>
       <div className="grid-2">
-        <Section title="Your signature" eyebrow="BRANDING">
+        <Section title="Document branding" eyebrow="BRANDING">
           <Field label="Studio / editor name">
             <input
               value={settings.brand}
@@ -92,7 +88,7 @@ export function Settings() {
             Their color system comes from the project palette.
           </p>
         </Section>
-        <Section title="A backup is peace of mind" eyebrow="LOCAL DATA">
+        <Section title="Backup & restore" eyebrow="LOCAL DATA">
           <p>
             Projects, versions, questionnaires, styles, media, font metadata,
             and branding live in this browser’s IndexedDB. No account, tracking,
@@ -168,7 +164,7 @@ export function Settings() {
           </p>
         </Section>
       </div>
-      <Section title="A library in your language" eyebrow="STYLE CATEGORIES">
+      <Section title="Library categories" eyebrow="STYLE CATEGORIES">
         <p>
           Rename a category to move its entries with it. Remove only empty
           categories.

@@ -108,6 +108,7 @@ export function Library() {
       return;
     }
     await db.projects.update(p.id, {
+      updated: new Date().toISOString(),
       board: [
         ...p.board,
         {
@@ -138,13 +139,9 @@ export function Library() {
     >
       <div className="page-heading">
         <div>
-          <span className="eyebrow">YOUR VISUAL VOCABULARY</span>
-          <h1>
-            Keep the things
-            <br />
-            that <em>make you look twice.</em>
-          </h1>
-          <p>A personal collection of references, details, and directions.</p>
+          <span className="eyebrow">LIBRARY</span>
+          <h1>Style library</h1>
+          <p>Saved screenshots, clips, and style references.</p>
         </div>
         <UploadButton
           label="Bulk import"
@@ -293,7 +290,7 @@ export function Library() {
         </div>
         {!filtered.length && (
           <div className="empty">
-            <h3>Your next great reference belongs here.</h3>
+            <h3>No styles match these filters.</h3>
             <p>Drop files or reset your filters.</p>
           </div>
         )}

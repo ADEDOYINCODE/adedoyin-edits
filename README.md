@@ -2,6 +2,16 @@
 
 A private creative-direction workspace for independent video editors and motion designers. Turn client intake, references, and visual decisions into an approval-ready brief before opening the timeline.
 
+## Windows: open without a terminal
+
+Install Node.js LTS, extract the downloaded project ZIP, then double-click **START-STYLE-FOUNDRY.cmd**. It installs dependencies on the first run and opens the app in your default browser. Keep that window open while using the app.
+
+When updating, first download a backup from Settings & backup and stop the old server with Ctrl+C. Extract the new version, then run its launcher. Continue using the **same browser/profile at http://localhost:5173** to access your existing data; localhost and 127.0.0.1 have separate browser storage. The v1.1 redesign keeps the existing database format.
+
+## Interface previews
+
+[Projects dashboard](docs/interface.png) · [Project workspace](docs/project-workspace.png) · [Client brief](docs/client-brief.png)
+
 ## Run
 
 Requires Node.js 22.12+ (validated with Node 24) and npm.

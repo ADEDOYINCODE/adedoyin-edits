@@ -91,10 +91,7 @@ export function References({ p, update }: { p: Project; update: Update }) {
         void upload(Array.from(e.dataTransfer.files));
       }}
     >
-      <Section
-        title="References with a reason"
-        eyebrow="OBSERVE / EXTRACT / MAKE IT YOURS"
-      >
+      <Section title="Reference videos & frames" eyebrow="REFERENCES">
         <p>
           A link is a starting point. The useful part is what you take from it —
           and what you leave behind.
@@ -159,7 +156,7 @@ export function References({ p, update }: { p: Project; update: Update }) {
       </Section>
       {!p.references.length && (
         <Empty
-          title="Look closely. Borrow intentionally."
+          title="No references added"
           detail="Add a client reference or drop a screenshot to begin your frame board."
         />
       )}
@@ -447,8 +444,8 @@ export function Priorities({ p, update }: { p: Project; update: Update }) {
   return (
     <>
       <Section
-        title="What deserves the attention"
-        eyebrow="RANK THE DIRECTION"
+        title="Editing priorities"
+        eyebrow="PRIORITIES"
         action={
           <button
             onClick={() => {
@@ -571,7 +568,7 @@ export function Priorities({ p, update }: { p: Project; update: Update }) {
           </button>
         </form>
       </Section>
-      <Section title="Quantity ↔ quality" eyebrow="CHOOSE THE TRADE-OFF">
+      <Section title="Quantity ↔ quality" eyebrow="ANIMATION BUDGET">
         <div className="section-head">
           <span className="small muted">Fewer, highly polished moments</span>
           <strong>{p.quantity}% volume</strong>

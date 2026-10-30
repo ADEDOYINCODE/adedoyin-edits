@@ -4,7 +4,8 @@ import type { Project, Status } from "../model";
 import { checklistLabels } from "../model";
 import { useUI } from "../store";
 import { Section, Field, Palette } from "../components";
-import { StatusSelect } from "./Hub";
+import { StatusSelect, ProjectPreview } from "./Hub";
+import { nextStep } from "../project-view";
 import { Questionnaire } from "./Questionnaire";
 import { References, Priorities } from "./References";
 import { ColorLab } from "./ColorLab";
@@ -30,9 +31,7 @@ export function Workspace({ p }: { p: Project }) {
       </button>
       <div className="page-heading workspace-heading">
         <div>
-          <span className="eyebrow">
-            {p.client.toUpperCase()} / CREATIVE DIRECTION
-          </span>
+          <span className="eyebrow">{p.client.toUpperCase()} / PROJECT</span>
           <h1>{p.name}</h1>
           <p>
             {p.niche} · {p.type} · {p.deliverables} deliverable
@@ -86,8 +85,37 @@ export function Workspace({ p }: { p: Project }) {
         <Questionnaire p={p} update={update} />
       ) : (
         <>
+          <div className="project-summary">
+            <div className="summary-image">
+              <ProjectPreview p={p} />
+            </div>
+            <div className="summary-copy">
+              <span className="eyebrow">CURRENT DIRECTION</span>
+              <h2>{p.client}</h2>
+              <p>
+                {p.vision ||
+                  "Complete intake and review the references to define this project’s direction."}
+              </p>
+              <Palette colors={p.palette} />
+              <div className="summary-fonts">
+                {p.fonts.map((f, i) => (
+                  <span key={i}>
+                    {["Headline", "Body", "Accent"][i]} / {f}
+                  </span>
+                ))}
+              </div>
+              <button
+                className="text-button"
+                style={{ marginTop: 20, fontSize: 12, color: "var(--accent)" }}
+                onClick={() => ui.set({ tab: "Brief" })}
+              >
+                Open client brief
+                <ArrowUpRight size={14} />
+              </button>
+            </div>
+          </div>
           <div className="grid-2">
-            <Section title="The project" eyebrow="01 / FOUNDATION">
+            <Section title="Project details" eyebrow="SETUP">
               <Field label="Project title">
                 <input
                   value={p.name}
@@ -145,13 +173,13 @@ export function Workspace({ p }: { p: Project }) {
                 />
               </Field>
             </Section>
-            <Section title="From intake to intention" eyebrow="02 / WORKFLOW">
+            <Section title="Project checklist" eyebrow="WORKFLOW">
               <div className="progress">
                 <span style={{ width: (p.checklist.length / 7) * 100 + "%" }} />
               </div>
               <p>
-                {p.checklist.length} of 7 steps complete. Build the foundation
-                before the edit.
+                {p.checklist.length} of 7 steps complete. Next:{" "}
+                {nextStep(p).action}.
               </p>
               <div className="check-list">
                 {checklistLabels.map((label) => (
@@ -174,31 +202,17 @@ export function Workspace({ p }: { p: Project }) {
               <button
                 style={{ marginTop: 28 }}
                 className="primary"
-                onClick={() => ui.set({ tab: "Intake" })}
+                onClick={() => ui.set({ tab: nextStep(p).tab })}
               >
-                Shape the direction <ArrowUpRight size={15} />
+                Continue to {nextStep(p).tab} <ArrowUpRight size={15} />
               </button>
             </Section>
           </div>
-          <Section title="At a glance">
-            <Palette colors={p.palette} large />
-            <div className="row">
-              {p.fonts.map((font, i) => (
-                <span className="pill" key={i}>
-                  {["Primary", "Secondary", "Accent"][i]} / {font}
-                </span>
-              ))}
-            </div>
-            <p>
-              {p.vision ||
-                "Your vision statement will take shape as the inputs come together."}
+          {p.reused.length > 0 && (
+            <p className="subtle">
+              Template assets reused: {p.reused.join(" · ")}
             </p>
-            {p.reused.length > 0 && (
-              <p className="subtle">
-                Reused from template: {p.reused.join(" · ")}
-              </p>
-            )}
-          </Section>
+          )}
         </>
       )}
       {ui.quick && (

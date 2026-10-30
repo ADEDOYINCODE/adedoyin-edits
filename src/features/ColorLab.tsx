@@ -89,10 +89,7 @@ export function ColorLab({ p, update }: { p: Project; update: Update }) {
   return (
     <>
       <div className="grid-2">
-        <Section
-          title="Start with their world"
-          eyebrow="01 / CLIENT BACKGROUND"
-        >
+        <Section title="Client background" eyebrow="01 / CLIENT BACKGROUND">
           <UploadButton
             multiple={false}
             label="Upload set, studio, logo, or thumbnail"
@@ -186,7 +183,7 @@ export function ColorLab({ p, update }: { p: Project; update: Update }) {
             />
           </Field>
         </Section>
-        <Section title="Build a color language" eyebrow="02 / PALETTE SYSTEM">
+        <Section title="Project palette" eyebrow="02 / PALETTE SYSTEM">
           {p.palette.map((color, i) => (
             <div className="color-row" key={i}>
               <input
@@ -269,10 +266,7 @@ export function ColorLab({ p, update }: { p: Project; update: Update }) {
           ))}
         </Section>
       </div>
-      <Section
-        title="See it before the timeline"
-        eyebrow="03 / LIVE DIRECTION PREVIEW"
-      >
+      <Section title="Graphic previews" eyebrow="03 / LIVE DIRECTION PREVIEW">
         <div
           className="preview-grid"
           style={
@@ -287,24 +281,21 @@ export function ColorLab({ p, update }: { p: Project; update: Update }) {
           <div className="preview lower-third">
             <small>LOWER THIRD</small>
             <div>
-              <b>Marcus / the idea in focus</b>
-              <span>Founder & independent thinker</span>
+              <b>{p.client}</b>
+              <span>{p.niche}</span>
             </div>
           </div>
           <div className="preview bullet-preview">
             <small>KEY STATEMENT</small>
-            <strong>
-              Build something
-              <br />
-              worth remembering.
-            </strong>
+            <strong>{p.name}</strong>
             <p>
               <i />
-              Clear ideas. Precise execution.
+              {p.priorities.find((x) => x.level !== "Avoid")?.text ||
+                "Key statement preview"}
             </p>
           </div>
           <div className="preview chart-preview">
-            <small>DATA / WITH PURPOSE</small>
+            <small>CHART PREVIEW</small>
             <div>
               {[25, 48, 40, 70, 92].map((h, i) => (
                 <span
@@ -316,16 +307,12 @@ export function ColorLab({ p, update }: { p: Project; update: Update }) {
                 />
               ))}
             </div>
-            <p>Small moves. Compound returns.</p>
+            <p>Sample chart / color preview</p>
           </div>
           <div className="preview title-preview">
             <small>TITLE CARD</small>
-            <strong style={{ fontFamily: p.fonts[0] }}>
-              An unfair
-              <br />
-              <em>advantage.</em>
-            </strong>
-            <b>01 / THE BIG IDEA</b>
+            <strong style={{ fontFamily: p.fonts[0] }}>{p.name}</strong>
+            <b>01 / TITLE STUDY</b>
           </div>
           <div className="preview transition-preview">
             <small>TRANSITION FRAME</small>
@@ -360,7 +347,7 @@ export function ColorLab({ p, update }: { p: Project; update: Update }) {
           })}
         </div>
       </Section>
-      <Section title="Ready for your tools" eyebrow="04 / EXPORT">
+      <Section title="Export palette" eyebrow="04 / EXPORT">
         <div className="row">
           <button
             onClick={() => download("palette-hex.txt", p.palette.join("\n"))}

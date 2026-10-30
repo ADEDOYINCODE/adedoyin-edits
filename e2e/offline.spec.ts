@@ -15,9 +15,7 @@ test("production caches every workspace and reloads offline without network serv
       remote.push(r.url());
   });
   await page.goto("http://127.0.0.1:4173");
-  await expect(
-    page.getByRole("heading", { name: /Good work starts/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Projects/ })).toBeVisible();
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller)
@@ -31,9 +29,7 @@ test("production caches every workspace and reloads offline without network serv
   });
   await context.setOffline(true);
   await page.reload();
-  await expect(
-    page.getByRole("heading", { name: /Good work starts/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Projects/ })).toBeVisible();
   await page
     .getByRole("button", {
       name: "The business of being different",
@@ -48,7 +44,7 @@ test("production caches every workspace and reloads offline without network serv
   await expect(
     page
       .frameLocator("iframe")
-      .getByRole("heading", { name: "A shared visual language." }),
+      .getByRole("heading", { name: "Direction", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Settings & backup", exact: true })

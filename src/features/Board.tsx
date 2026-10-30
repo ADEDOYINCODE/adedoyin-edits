@@ -101,7 +101,7 @@ export function Board({ p, update }: { p: Project; update: Update }) {
           note: "An idea worth keeping.",
           image: "Reference frame",
           swatch: p.palette[0],
-          font: "Make it matter.",
+          font: p.name,
           arrow: "",
           frame: "New section",
           link: "https://",
@@ -235,8 +235,8 @@ export function Board({ p, update }: { p: Project; update: Update }) {
     >
       <div className="section-head">
         <div>
-          <span className="eyebrow">CONNECT THE DOTS</span>
-          <h2>A place for the direction to take shape.</h2>
+          <span className="eyebrow">MOOD BOARD</span>
+          <h2>Project board</h2>
         </div>
         <div className="row">
           {["Canvas", "Pinterest"].map((x) => (
@@ -569,10 +569,10 @@ function BoardObject({
             ? "#1a201530"
             : b.kind === "swatch"
               ? b.color
-              : "#272e24"
+              : "#282b30"
         }
         stroke={
-          selected ? "#e7f2ad" : b.kind === "frame" ? "#637052" : "#3e4736"
+          selected ? "#e7f2ad" : b.kind === "frame" ? "#637052" : "#565a62"
         }
         strokeWidth={selected ? 2 : 1}
         dash={b.kind === "frame" ? [8, 8] : undefined}
@@ -600,8 +600,8 @@ function BoardObject({
             b.kind === "swatch"
               ? "#141811"
               : b.kind === "frame"
-                ? "#a3b38c"
-                : "#e5eadb"
+                ? "#b0b4bd"
+                : "#eeeeee"
           }
           fontSize={b.kind === "font" ? 32 : b.kind === "frame" ? 14 : 18}
           fontFamily={b.kind === "font" ? font : "Arial"}

@@ -137,3 +137,35 @@ describe("portable documents and versions", () => {
     ]);
   });
 });
+import { nextStep, completedSteps, previewMedia } from "./project-view";
+describe("project navigation", () => {
+  it("resumes at the first incomplete workflow step rather than the total count", () => {
+    const p = newProject();
+    p.checklist = ["Board complete"];
+    expect(completedSteps(p)).toBe(1);
+    expect(nextStep(p).tab).toBe("Intake");
+    p.checklist = [
+      "Questionnaire sent",
+      "Answers returned",
+      "References reviewed",
+    ];
+    expect(nextStep(p)).toMatchObject({
+      label: "Colors locked",
+      tab: "Color Lab",
+    });
+    p.board = [
+      {
+        id: "frame",
+        kind: "image",
+        media: "actual-media",
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 100,
+        text: "Original frame",
+        color: "#FFFFFF",
+      },
+    ];
+    expect(previewMedia(p)).toBe("actual-media");
+  });
+});
