@@ -1,5 +1,606 @@
-import {useState,useEffect,useRef} from 'react';import {ArrowUp,ArrowDown,Trash2,Plus,ExternalLink} from 'lucide-react';import type {Project,Reference,Priority,Annotation} from '../model';import {uid} from '../model';import {addMedia} from '../db';import {safeUrl,extract} from '../utils';import {notify} from '../store';import {Field,Section,UploadButton,MediaView,Empty} from '../components';import type {Update} from './Questionnaire';
-const tags=['hook','lower third','bullet points','transition','color','typography','infographic'];
-export function References({p,update}:{p:Project;update:Update}){const [url,setUrl]=useState('');const [title,setTitle]=useState('');const [selected,setSelected]=useState<string|null>(null);const host=useRef<HTMLDivElement>(null);const modify=(id:string,patch:Partial<Reference>)=>update({references:p.references.map(r=>r.id===id?{...r,...patch}:r)});const upload=async(files:File[])=>{const refs:Reference[]=[];for(const f of files.filter(f=>/^(image|video)\//.test(f.type))){const media=await addMedia(f,f.name);refs.push({id:uid(),url:'',title:f.name,reason:'',take:'',avoid:'',media,tag:'hook',annotations:[]})}if(refs.length)update({references:[...p.references,...refs]})};useEffect(()=>{const el=host.current;const paste=(e:ClipboardEvent)=>{if((e.target as HTMLElement).matches('input,textarea'))return;const files=Array.from(e.clipboardData?.files||[]);if(files.length){e.preventDefault();void upload(files)}};el?.addEventListener('paste',paste);return()=>el?.removeEventListener('paste',paste)},[p.references]);const importIntake=()=>{const refs:Reference[]=[];for(const q of p.questions.filter(q=>q.kind==='reference')){try{const a=JSON.parse(p.answers[q.id]||'{}');if(safeUrl(a.url)&&!p.references.some(r=>r.url===a.url))refs.push({id:uid(),url:a.url,title:'Client reference '+(refs.length+1),reason:a.why||'',take:a.take||'',avoid:'',tag:'hook',annotations:[]})}catch{/* Incomplete intake reference. */}}update({references:[...p.references,...refs]});notify(refs.length+' references imported from intake')};return <div ref={host} tabIndex={-1} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void upload(Array.from(e.dataTransfer.files))}}><Section title="References with a reason" eyebrow="OBSERVE / EXTRACT / MAKE IT YOURS"><p>A link is a starting point. The useful part is what you take from it — and what you leave behind.</p><form className="reference-form" onSubmit={e=>{e.preventDefault();if(!safeUrl(url)){notify('Enter a valid HTTPS or HTTP video URL.');return}update({references:[...p.references,{id:uid(),url:safeUrl(url),title:title||new URL(url).hostname,reason:'',take:'',avoid:'',tag:'hook',annotations:[]}]});setUrl('');setTitle('')}}><input type="url" required aria-label="Video URL" value={url} placeholder="Paste a reference video URL…" onChange={e=>setUrl(e.target.value)}/><input aria-label="Reference title" value={title} placeholder="Give it a useful title" onChange={e=>setTitle(e.target.value)}/><button type="submit" className="primary"><Plus size={15}/>Add reference</button></form><div className="row"><UploadButton label="Add frames / own recordings" accept="image/*,video/*" onFiles={upload}/><button onClick={importIntake}>Pull from questionnaire</button><span className="subtle">Drop files or paste screenshots here. Videos stay local.</span></div></Section>{!p.references.length&&<Empty title="Look closely. Borrow intentionally." detail="Add a client reference or drop a screenshot to begin your frame board."/>}<div className="grid-2">{p.references.map(r=><Section key={r.id} title={r.title} action={<button className="icon danger" aria-label={'Remove '+r.title} onClick={()=>update({references:p.references.filter(x=>x.id!==r.id)})}><Trash2 size={15}/></button>}>{r.media&&<button className="frame-open" onClick={()=>setSelected(r.id)}><MediaView id={r.media} className="reference-media"/><span>Annotate frame ↗</span></button>}{r.url&&<a className="reference-link" href={safeUrl(r.url)} target="_blank" rel="noreferrer">Open source <ExternalLink size={12}/></a>}<Field label="Title"><input value={r.title} onChange={e=>modify(r.id,{title:e.target.value})}/></Field><Field label="Frame tag"><select value={r.tag} onChange={e=>modify(r.id,{tag:e.target.value})}>{tags.map(t=><option key={t}>{t}</option>)}</select></Field><Field label="Why does the client like it?"><textarea value={r.reason} onChange={e=>modify(r.id,{reason:e.target.value})}/></Field><div className="grid-2"><Field label="TAKE / one idea per line"><textarea value={r.take} placeholder="Purposeful bullet-point reveals" onChange={e=>modify(r.id,{take:e.target.value})}/></Field><Field label="AVOID / even in a video they love"><textarea value={r.avoid} placeholder="The cartoony intro" onChange={e=>modify(r.id,{avoid:e.target.value})}/></Field></div></Section>)}</div><Section title="Extraction summary" action={<button className="primary" onClick={()=>{update({priorities:extract(p),status:'Analysis'});notify('Ranked starting point created. Refine it in Priorities.')}}>Build priorities</button>}><div className="grid-2"><div><h3>Take forward</h3>{extract(p).filter(x=>x.level!=='Avoid').map(x=><p key={x.id}>↗ {x.text}</p>)}</div><div><h3>Leave behind</h3>{extract(p).filter(x=>x.level==='Avoid').map(x=><p key={x.id}>× {x.text}</p>)}</div></div></Section>{selected&&p.references.find(r=>r.id===selected)&&<FrameEditor reference={p.references.find(r=>r.id===selected)!} onChange={a=>modify(selected,{annotations:a})} close={()=>setSelected(null)}/>}</div>}
-function FrameEditor({reference:r,onChange,close}:{reference:Reference;onChange:(a:Annotation[])=>void;close:()=>void}){const [tool,setTool]=useState<Annotation['kind']>('note');const [note,setNote]=useState('');return <div className="modal-backdrop"><div className="modal frame-modal" role="dialog" aria-modal="true" aria-label="Frame annotations"><div className="section-head"><h2>Read the frame</h2><button onClick={close}>Done</button></div><div className="row">{(['note','box','arrow'] as const).map(t=><button className={tool===t?'primary':''} key={t} onClick={()=>setTool(t)}>{t}</button>)}<input aria-label="Annotation note" value={note} onChange={e=>setNote(e.target.value)} placeholder="What should we notice?"/></div><p className="subtle">Choose a tool, then click the frame. Use the list below to edit or remove annotations.</p><div className="annotated-frame" onClick={e=>{const rect=e.currentTarget.getBoundingClientRect();onChange([...r.annotations,{id:uid(),kind:tool,x:(e.clientX-rect.left)/rect.width*100,y:(e.clientY-rect.top)/rect.height*100,text:note||'Look here'}])}}><MediaView id={r.media} full/><svg viewBox="0 0 1000 650" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#e9ed99"/></marker></defs>{r.annotations.map(a=>a.kind==='box'?<rect key={a.id} x={a.x*10} y={a.y*6.5} width="140" height="90" fill="none" stroke="#e9ed99" strokeWidth="3"/>:a.kind==='arrow'?<line key={a.id} x1={a.x*10-80} y1={a.y*6.5+60} x2={a.x*10} y2={a.y*6.5} stroke="#e9ed99" strokeWidth="3" markerEnd="url(#arrowhead)"/>:<text key={a.id} x={a.x*10} y={a.y*6.5} fill="#e9ed99" fontSize="25" stroke="#101112" paintOrder="stroke" strokeWidth="4">{a.text}</text>)}</svg></div>{r.annotations.map(a=><div className="row annotation-row" key={a.id}><span className="pill">{a.kind}</span><input aria-label="Annotation text" value={a.text} onChange={e=>onChange(r.annotations.map(x=>x.id===a.id?{...x,text:e.target.value}:x))}/><button className="icon" aria-label="Remove annotation" onClick={()=>onChange(r.annotations.filter(x=>x.id!==a.id))}><Trash2 size={14}/></button></div>)}</div></div>}
-export function Priorities({p,update}:{p:Project;update:Update}){const [text,setText]=useState('');const [drag,setDrag]=useState<number|null>(null);const move=(i:number,j:number)=>{if(j<0||j>=p.priorities.length)return;const a=[...p.priorities];const [x]=a.splice(i,1);a.splice(j,0,x);update({priorities:a})};const days=p.deadline?Math.ceil((new Date(p.deadline+'T23:59:59').getTime()-Date.now())/86400000):null;return <><Section title="What deserves the attention" eyebrow="RANK THE DIRECTION" action={<button onClick={()=>{if(p.priorities.length&&!confirm('Replace the current priorities with a fresh extraction?'))return;update({priorities:extract(p)})}}>Extract from inputs</button>}><p>Drag to rank. Musts lead the edit; Shoulds add character; Avoids protect the direction.</p>{p.priorities.map((r,i)=><div className="priority-row" key={r.id} draggable onDragStart={()=>setDrag(i)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();if(drag!==null)move(drag,i);setDrag(null)}}><span className="priority-index">{String(i+1).padStart(2,'0')}</span><input aria-label={'Priority '+(i+1)} value={r.text} onChange={e=>update({priorities:p.priorities.map(x=>x.id===r.id?{...x,text:e.target.value}:x)})}/><select aria-label={'Priority level '+(i+1)} value={r.level} onChange={e=>update({priorities:p.priorities.map(x=>x.id===r.id?{...x,level:e.target.value as Priority['level']}:x)})}>{['Must','Should','Avoid'].map(x=><option key={x}>{x}</option>)}</select><button className="icon" aria-label="Move priority up" disabled={i===0} onClick={()=>move(i,i-1)}><ArrowUp size={14}/></button><button className="icon" aria-label="Move priority down" disabled={i===p.priorities.length-1} onClick={()=>move(i,i+1)}><ArrowDown size={14}/></button><button className="icon" aria-label="Remove priority" onClick={()=>update({priorities:p.priorities.filter(x=>x.id!==r.id)})}><Trash2 size={14}/></button></div>)}<form className="row" onSubmit={e=>{e.preventDefault();if(text.trim()){update({priorities:[...p.priorities,{id:uid(),text:text.trim(),level:'Should'}]});setText('')}}}><input aria-label="New priority" value={text} onChange={e=>setText(e.target.value)} placeholder="Add a creative priority…" required/><button type="submit"><Plus size={15}/>Add priority</button></form></Section><Section title="Quantity ↔ quality" eyebrow="CHOOSE THE TRADE-OFF"><div className="section-head"><span className="small muted">Fewer, highly polished moments</span><strong>{p.quantity}% volume</strong><span className="small muted">More frequent animation</span></div><input aria-label="Animation quantity versus quality" type="range" min={0} max={100} value={p.quantity} onChange={e=>update({quantity:Number(e.target.value)})}/>{days!==null&&days<=7&&p.quantity>=60?<div className="notice">{days<0?'The deadline has passed.':`${days} days remaining for ${p.deliverables} deliverable${p.deliverables>1?'s':''}.`} Prioritize quantity, reserve A-tier polish for the hook. Reuse a consistent motion system for the body.</div>:<p>{p.quantity>=60?'Build a repeatable animation vocabulary. Reserve extra polish for the opening hook.':'Let fewer moments carry more weight. Use space, rhythm, and strong type between hero animations.'}</p>}</Section></>}
+import { useState, useEffect, useRef } from "react";
+import { ArrowUp, ArrowDown, Trash2, Plus, ExternalLink } from "lucide-react";
+import type { Project, Reference, Priority, Annotation } from "../model";
+import { uid } from "../model";
+import { addMedia } from "../db";
+import { safeUrl, extract } from "../utils";
+import { notify } from "../store";
+import { Field, Section, UploadButton, MediaView, Empty } from "../components";
+import type { Update } from "./Questionnaire";
+const tags = [
+  "hook",
+  "lower third",
+  "bullet points",
+  "transition",
+  "color",
+  "typography",
+  "infographic",
+];
+export function References({ p, update }: { p: Project; update: Update }) {
+  const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
+  const host = useRef<HTMLDivElement>(null);
+  const modify = (id: string, patch: Partial<Reference>) =>
+    update({
+      references: p.references.map((r) =>
+        r.id === id ? { ...r, ...patch } : r,
+      ),
+    });
+  const upload = async (files: File[]) => {
+    const refs: Reference[] = [];
+    for (const f of files.filter((f) => /^(image|video)\//.test(f.type))) {
+      const media = await addMedia(f, f.name);
+      refs.push({
+        id: uid(),
+        url: "",
+        title: f.name,
+        reason: "",
+        take: "",
+        avoid: "",
+        media,
+        tag: "hook",
+        annotations: [],
+      });
+    }
+    if (refs.length) update({ references: [...p.references, ...refs] });
+  };
+  useEffect(() => {
+    const el = host.current;
+    const paste = (e: ClipboardEvent) => {
+      if ((e.target as HTMLElement).matches("input,textarea")) return;
+      const files = Array.from(e.clipboardData?.files || []);
+      if (files.length) {
+        e.preventDefault();
+        void upload(files);
+      }
+    };
+    el?.addEventListener("paste", paste);
+    return () => el?.removeEventListener("paste", paste);
+  }, [p.references]);
+  const importIntake = () => {
+    const refs: Reference[] = [];
+    for (const q of p.questions.filter((q) => q.kind === "reference")) {
+      try {
+        const a = JSON.parse(p.answers[q.id] || "{}");
+        if (safeUrl(a.url) && !p.references.some((r) => r.url === a.url))
+          refs.push({
+            id: uid(),
+            url: a.url,
+            title: "Client reference " + (refs.length + 1),
+            reason: a.why || "",
+            take: a.take || "",
+            avoid: "",
+            tag: "hook",
+            annotations: [],
+          });
+      } catch {
+        /* Incomplete intake reference. */
+      }
+    }
+    update({ references: [...p.references, ...refs] });
+    notify(refs.length + " references imported from intake");
+  };
+  return (
+    <div
+      ref={host}
+      tabIndex={-1}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        void upload(Array.from(e.dataTransfer.files));
+      }}
+    >
+      <Section
+        title="References with a reason"
+        eyebrow="OBSERVE / EXTRACT / MAKE IT YOURS"
+      >
+        <p>
+          A link is a starting point. The useful part is what you take from it —
+          and what you leave behind.
+        </p>
+        <form
+          className="reference-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!safeUrl(url)) {
+              notify("Enter a valid HTTPS or HTTP video URL.");
+              return;
+            }
+            update({
+              references: [
+                ...p.references,
+                {
+                  id: uid(),
+                  url: safeUrl(url),
+                  title: title || new URL(url).hostname,
+                  reason: "",
+                  take: "",
+                  avoid: "",
+                  tag: "hook",
+                  annotations: [],
+                },
+              ],
+            });
+            setUrl("");
+            setTitle("");
+          }}
+        >
+          <input
+            type="url"
+            required
+            aria-label="Video URL"
+            value={url}
+            placeholder="Paste a reference video URL…"
+            onChange={(e) => setUrl(e.target.value)}
+          />
+          <input
+            aria-label="Reference title"
+            value={title}
+            placeholder="Give it a useful title"
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <button type="submit" className="primary">
+            <Plus size={15} />
+            Add reference
+          </button>
+        </form>
+        <div className="row">
+          <UploadButton
+            label="Add frames / own recordings"
+            accept="image/*,video/*"
+            onFiles={upload}
+          />
+          <button onClick={importIntake}>Pull from questionnaire</button>
+          <span className="subtle">
+            Drop files or paste screenshots here. Videos stay local.
+          </span>
+        </div>
+      </Section>
+      {!p.references.length && (
+        <Empty
+          title="Look closely. Borrow intentionally."
+          detail="Add a client reference or drop a screenshot to begin your frame board."
+        />
+      )}
+      <div className="grid-2">
+        {p.references.map((r) => (
+          <Section
+            key={r.id}
+            title={r.title}
+            action={
+              <button
+                className="icon danger"
+                aria-label={"Remove " + r.title}
+                onClick={() =>
+                  update({
+                    references: p.references.filter((x) => x.id !== r.id),
+                  })
+                }
+              >
+                <Trash2 size={15} />
+              </button>
+            }
+          >
+            {r.media && (
+              <button className="frame-open" onClick={() => setSelected(r.id)}>
+                <MediaView id={r.media} className="reference-media" />
+                <span>Annotate frame ↗</span>
+              </button>
+            )}
+            {r.url && (
+              <a
+                className="reference-link"
+                href={safeUrl(r.url)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open source <ExternalLink size={12} />
+              </a>
+            )}
+            <Field label="Title">
+              <input
+                value={r.title}
+                onChange={(e) => modify(r.id, { title: e.target.value })}
+              />
+            </Field>
+            <Field label="Frame tag">
+              <select
+                value={r.tag}
+                onChange={(e) => modify(r.id, { tag: e.target.value })}
+              >
+                {tags.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Why does the client like it?">
+              <textarea
+                value={r.reason}
+                onChange={(e) => modify(r.id, { reason: e.target.value })}
+              />
+            </Field>
+            <div className="grid-2">
+              <Field label="TAKE / one idea per line">
+                <textarea
+                  value={r.take}
+                  placeholder="Purposeful bullet-point reveals"
+                  onChange={(e) => modify(r.id, { take: e.target.value })}
+                />
+              </Field>
+              <Field label="AVOID / even in a video they love">
+                <textarea
+                  value={r.avoid}
+                  placeholder="The cartoony intro"
+                  onChange={(e) => modify(r.id, { avoid: e.target.value })}
+                />
+              </Field>
+            </div>
+          </Section>
+        ))}
+      </div>
+      <Section
+        title="Extraction summary"
+        action={
+          <button
+            className="primary"
+            onClick={() => {
+              update({ priorities: extract(p), status: "Analysis" });
+              notify("Ranked starting point created. Refine it in Priorities.");
+            }}
+          >
+            Build priorities
+          </button>
+        }
+      >
+        <div className="grid-2">
+          <div>
+            <h3>Take forward</h3>
+            {extract(p)
+              .filter((x) => x.level !== "Avoid")
+              .map((x) => (
+                <p key={x.id}>↗ {x.text}</p>
+              ))}
+          </div>
+          <div>
+            <h3>Leave behind</h3>
+            {extract(p)
+              .filter((x) => x.level === "Avoid")
+              .map((x) => (
+                <p key={x.id}>× {x.text}</p>
+              ))}
+          </div>
+        </div>
+      </Section>
+      {selected && p.references.find((r) => r.id === selected) && (
+        <FrameEditor
+          reference={p.references.find((r) => r.id === selected)!}
+          onChange={(a) => modify(selected, { annotations: a })}
+          close={() => setSelected(null)}
+        />
+      )}
+    </div>
+  );
+}
+function FrameEditor({
+  reference: r,
+  onChange,
+  close,
+}: {
+  reference: Reference;
+  onChange: (a: Annotation[]) => void;
+  close: () => void;
+}) {
+  const [tool, setTool] = useState<Annotation["kind"]>("note");
+  const [note, setNote] = useState("");
+  return (
+    <div className="modal-backdrop">
+      <div
+        className="modal frame-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Frame annotations"
+      >
+        <div className="section-head">
+          <h2>Read the frame</h2>
+          <button onClick={close}>Done</button>
+        </div>
+        <div className="row">
+          {(["note", "box", "arrow"] as const).map((t) => (
+            <button
+              className={tool === t ? "primary" : ""}
+              key={t}
+              onClick={() => setTool(t)}
+            >
+              {t}
+            </button>
+          ))}
+          <input
+            aria-label="Annotation note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="What should we notice?"
+          />
+        </div>
+        <p className="subtle">
+          Choose a tool, then click the frame. Use the list below to edit or
+          remove annotations.
+        </p>
+        <div
+          className="annotated-frame"
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            onChange([
+              ...r.annotations,
+              {
+                id: uid(),
+                kind: tool,
+                x: ((e.clientX - rect.left) / rect.width) * 100,
+                y: ((e.clientY - rect.top) / rect.height) * 100,
+                text: note || "Look here",
+              },
+            ]);
+          }}
+        >
+          <MediaView id={r.media} full />
+          <svg
+            viewBox="0 0 1000 650"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <marker
+                id="arrowhead"
+                markerWidth="8"
+                markerHeight="8"
+                refX="7"
+                refY="4"
+                orient="auto"
+              >
+                <path d="M0 0L8 4L0 8" fill="#e9ed99" />
+              </marker>
+            </defs>
+            {r.annotations.map((a) =>
+              a.kind === "box" ? (
+                <rect
+                  key={a.id}
+                  x={a.x * 10}
+                  y={a.y * 6.5}
+                  width="140"
+                  height="90"
+                  fill="none"
+                  stroke="#e9ed99"
+                  strokeWidth="3"
+                />
+              ) : a.kind === "arrow" ? (
+                <line
+                  key={a.id}
+                  x1={a.x * 10 - 80}
+                  y1={a.y * 6.5 + 60}
+                  x2={a.x * 10}
+                  y2={a.y * 6.5}
+                  stroke="#e9ed99"
+                  strokeWidth="3"
+                  markerEnd="url(#arrowhead)"
+                />
+              ) : (
+                <text
+                  key={a.id}
+                  x={a.x * 10}
+                  y={a.y * 6.5}
+                  fill="#e9ed99"
+                  fontSize="25"
+                  stroke="#101112"
+                  paintOrder="stroke"
+                  strokeWidth="4"
+                >
+                  {a.text}
+                </text>
+              ),
+            )}
+          </svg>
+        </div>
+        {r.annotations.map((a) => (
+          <div className="row annotation-row" key={a.id}>
+            <span className="pill">{a.kind}</span>
+            <input
+              aria-label="Annotation text"
+              value={a.text}
+              onChange={(e) =>
+                onChange(
+                  r.annotations.map((x) =>
+                    x.id === a.id ? { ...x, text: e.target.value } : x,
+                  ),
+                )
+              }
+            />
+            <button
+              className="icon"
+              aria-label="Remove annotation"
+              onClick={() =>
+                onChange(r.annotations.filter((x) => x.id !== a.id))
+              }
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+export function Priorities({ p, update }: { p: Project; update: Update }) {
+  const [text, setText] = useState("");
+  const [drag, setDrag] = useState<number | null>(null);
+  const move = (i: number, j: number) => {
+    if (j < 0 || j >= p.priorities.length) return;
+    const a = [...p.priorities];
+    const [x] = a.splice(i, 1);
+    a.splice(j, 0, x);
+    update({ priorities: a });
+  };
+  const days = p.deadline
+    ? Math.ceil(
+        (new Date(p.deadline + "T23:59:59").getTime() - Date.now()) / 86400000,
+      )
+    : null;
+  return (
+    <>
+      <Section
+        title="What deserves the attention"
+        eyebrow="RANK THE DIRECTION"
+        action={
+          <button
+            onClick={() => {
+              if (
+                p.priorities.length &&
+                !confirm(
+                  "Replace the current priorities with a fresh extraction?",
+                )
+              )
+                return;
+              update({ priorities: extract(p) });
+            }}
+          >
+            Extract from inputs
+          </button>
+        }
+      >
+        <p>
+          Drag to rank. Musts lead the edit; Shoulds add character; Avoids
+          protect the direction.
+        </p>
+        {p.priorities.map((r, i) => (
+          <div
+            className="priority-row"
+            key={r.id}
+            draggable
+            onDragStart={() => setDrag(i)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (drag !== null) move(drag, i);
+              setDrag(null);
+            }}
+          >
+            <span className="priority-index">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <input
+              aria-label={"Priority " + (i + 1)}
+              value={r.text}
+              onChange={(e) =>
+                update({
+                  priorities: p.priorities.map((x) =>
+                    x.id === r.id ? { ...x, text: e.target.value } : x,
+                  ),
+                })
+              }
+            />
+            <select
+              aria-label={"Priority level " + (i + 1)}
+              value={r.level}
+              onChange={(e) =>
+                update({
+                  priorities: p.priorities.map((x) =>
+                    x.id === r.id
+                      ? { ...x, level: e.target.value as Priority["level"] }
+                      : x,
+                  ),
+                })
+              }
+            >
+              {["Must", "Should", "Avoid"].map((x) => (
+                <option key={x}>{x}</option>
+              ))}
+            </select>
+            <button
+              className="icon"
+              aria-label="Move priority up"
+              disabled={i === 0}
+              onClick={() => move(i, i - 1)}
+            >
+              <ArrowUp size={14} />
+            </button>
+            <button
+              className="icon"
+              aria-label="Move priority down"
+              disabled={i === p.priorities.length - 1}
+              onClick={() => move(i, i + 1)}
+            >
+              <ArrowDown size={14} />
+            </button>
+            <button
+              className="icon"
+              aria-label="Remove priority"
+              onClick={() =>
+                update({
+                  priorities: p.priorities.filter((x) => x.id !== r.id),
+                })
+              }
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+        <form
+          className="row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (text.trim()) {
+              update({
+                priorities: [
+                  ...p.priorities,
+                  { id: uid(), text: text.trim(), level: "Should" },
+                ],
+              });
+              setText("");
+            }
+          }}
+        >
+          <input
+            aria-label="New priority"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Add a creative priority…"
+            required
+          />
+          <button type="submit">
+            <Plus size={15} />
+            Add priority
+          </button>
+        </form>
+      </Section>
+      <Section title="Quantity ↔ quality" eyebrow="CHOOSE THE TRADE-OFF">
+        <div className="section-head">
+          <span className="small muted">Fewer, highly polished moments</span>
+          <strong>{p.quantity}% volume</strong>
+          <span className="small muted">More frequent animation</span>
+        </div>
+        <input
+          aria-label="Animation quantity versus quality"
+          type="range"
+          min={0}
+          max={100}
+          value={p.quantity}
+          onChange={(e) => update({ quantity: Number(e.target.value) })}
+        />
+        {days !== null && days <= 7 && p.quantity >= 60 ? (
+          <div className="notice">
+            {days < 0
+              ? "The deadline has passed."
+              : `${days} days remaining for ${p.deliverables} deliverable${p.deliverables > 1 ? "s" : ""}.`}{" "}
+            Prioritize quantity, reserve A-tier polish for the hook. Reuse a
+            consistent motion system for the body.
+          </div>
+        ) : (
+          <p>
+            {p.quantity >= 60
+              ? "Build a repeatable animation vocabulary. Reserve extra polish for the opening hook."
+              : "Let fewer moments carry more weight. Use space, rhythm, and strong type between hero animations."}
+          </p>
+        )}
+      </Section>
+    </>
+  );
+}

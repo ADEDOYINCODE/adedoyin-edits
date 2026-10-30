@@ -1,3 +1,47 @@
 // Font metadata is read from the OpenType name table, without uploading bytes.
-function nameFromBuffer(buffer:ArrayBuffer,fallback:string){try{const v=new DataView(buffer);const count=v.getUint16(4);for(let i=0;i<count;i++){const o=12+i*16;const tag=String.fromCharCode(...new Uint8Array(buffer,o,4));if(tag!=='name')continue;const base=v.getUint32(o+8),n=v.getUint16(base+2),strings=base+v.getUint16(base+4);let family='';for(let j=0;j<n;j++){const r=base+6+j*12,platform=v.getUint16(r),id=v.getUint16(r+6);if(id!==1&&id!==16)continue;const length=v.getUint16(r+8),start=strings+v.getUint16(r+10);const data=new Uint8Array(buffer,start,length);const value=platform===0||platform===3?new TextDecoder('utf-16be').decode(data):new TextDecoder().decode(data);if(value&&(id===16||!family))family=value;}if(family)return family;}}catch{/* WOFF/unsupported container falls back to filename. */}return fallback.replace(/\.[^.]+$/,'').replace(/[-_]/g,' ')}
-self.onmessage=async(e:MessageEvent<{files:File[]}>)=>{for(let i=0;i<e.data.files.length;i++){const f=e.data.files[i];const name=nameFromBuffer(await f.arrayBuffer(),f.name);self.postMessage({index:i,name,path:f.webkitRelativePath||f.name,total:e.data.files.length})}self.postMessage({done:true})};
+function nameFromBuffer(buffer: ArrayBuffer, fallback: string) {
+  try {
+    const v = new DataView(buffer);
+    const count = v.getUint16(4);
+    for (let i = 0; i < count; i++) {
+      const o = 12 + i * 16;
+      const tag = String.fromCharCode(...new Uint8Array(buffer, o, 4));
+      if (tag !== "name") continue;
+      const base = v.getUint32(o + 8),
+        n = v.getUint16(base + 2),
+        strings = base + v.getUint16(base + 4);
+      let family = "";
+      for (let j = 0; j < n; j++) {
+        const r = base + 6 + j * 12,
+          platform = v.getUint16(r),
+          id = v.getUint16(r + 6);
+        if (id !== 1 && id !== 16) continue;
+        const length = v.getUint16(r + 8),
+          start = strings + v.getUint16(r + 10);
+        const data = new Uint8Array(buffer, start, length);
+        const value =
+          platform === 0 || platform === 3
+            ? new TextDecoder("utf-16be").decode(data)
+            : new TextDecoder().decode(data);
+        if (value && (id === 16 || !family)) family = value;
+      }
+      if (family) return family;
+    }
+  } catch {
+    /* WOFF/unsupported container falls back to filename. */
+  }
+  return fallback.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
+}
+self.onmessage = async (e: MessageEvent<{ files: File[] }>) => {
+  for (let i = 0; i < e.data.files.length; i++) {
+    const f = e.data.files[i];
+    const name = nameFromBuffer(await f.arrayBuffer(), f.name);
+    self.postMessage({
+      index: i,
+      name,
+      path: f.webkitRelativePath || f.name,
+      total: e.data.files.length,
+    });
+  }
+  self.postMessage({ done: true });
+};

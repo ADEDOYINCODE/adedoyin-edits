@@ -1,11 +1,133 @@
-import type {Project} from './model';import type {DocumentSettings} from './documents';import {wrapDocument} from './documents';import {db} from './db';import {blobData,escapeHtml as e,safeUrl} from './utils';
-export function draftVision(p:Project){const pace=Number(p.answers.taste0||50)>60?'energetic and intentional':'measured and confident';return `${p.client}’s ${p.niche.toLowerCase()} content should feel ${pace}. Build a ${p.background==='dark'?'dark, grounded':'light, spacious'} visual world with ${p.fonts[0]} headlines and ${p.fonts[1]} supporting type. ${p.priorities.find(x=>x.level==='Must')?.text||'Let each animation make the central idea clearer'}. Use ${p.palette[0]} to direct attention, with ${p.palette[1]} as a supporting counterpoint. This is a creative starting point — the edit brings the taste.`;}
-export function guideMarkdown(p:Project,brand:string){return `# Creative Direction Brief\n## ${p.client} / ${p.name}\nPrepared by ${brand} · ${p.type} · ${p.deliverables} deliverables\n\n## Vision\n${p.vision||draftVision(p)}\n\n## Priorities\n${p.priorities.map((x,i)=>`${i+1}. [${x.level}] ${x.text}`).join('\n')}\n\n## Color system\n${p.palette.join(' · ')}\nBackground: ${p.background}\n${p.rationale}\n\n## Typography\n${p.fonts.map((f,i)=>`${['Primary','Secondary','Accent'][i]}: ${f}`).join('\n')}\n\n## Reference extraction\n${p.references.map(r=>`### ${r.title}\n${r.url}\nClient reason: ${r.reason}\nTake: ${r.take}\nAvoid: ${r.avoid}\nAnnotations: ${r.annotations.map(a=>a.text).join('; ')}`).join('\n\n')}\n\n## Animation approach\n${animationNotes(p)}\n\n## Pacing & sound\n${soundNotes(p)}\n\n## Timeline\n${timelineNotes(p)}\n\n## Feedback\n${p.feedback||'Awaiting client feedback.'}\n`;}
-export function animationNotes(p:Project){return `${p.quantity}% emphasis on volume. ${p.quantity>=60?'Use a repeatable motion vocabulary for the body. Reserve A-tier polish for the opening hook.':'Use fewer hero animations with more detail. Let typography and pacing hold the quieter moments.'} ${p.answers.hook||'Open with the central idea, clearly visualized.'} ${p.answers.text||'Use short bullet reveals on key statements. Animate to clarify ideas.'}`;}
-export function soundNotes(p:Project){const label=(key:string,a:string,b:string)=>Number(p.answers[key]||50)>55?b:a;return `${label('taste0','Measured pacing with room to absorb ideas.','Fast-paced, intentional cuts with clear visual hierarchy.')} ${label('taste3','Music stays subtle or absent; prioritize the voice.','Music supports the emotional rhythm beneath the voice.')} ${label('taste4','Use restrained sound accents on meaningful changes.','Layer sound design around transitions and idea reveals.')} ${p.answers['sound-notes']||''}`;}
-export function timelineNotes(p:Project){const days=p.deadline?Math.ceil((new Date(p.deadline+'T23:59:59').getTime()-Date.now())/86400000):null;return `${p.deliverables} ${p.type} deliverable${p.deliverables>1?'s':''}. ${p.deadline?'Target delivery: '+p.deadline+'.':'Delivery date to be agreed.'} ${days!==null&&days<=7&&p.quantity>=60?'Tight timeline: prioritize quantity, reserve A-tier polish for the hook; approve the reusable system early.':'Lock the palette, fonts, and animation priorities before the editing pass.'}`;}
-export async function guideDocument(p:Project,settings:DocumentSettings,cheat=false){const vision=p.vision||draftVision(p);const refs=await Promise.all(p.references.map(async r=>{const m=r.media?await db.media.get(r.media):undefined;const src=m?.type.startsWith('image/')?await blobData(m.thumb||m.blob):'';return `<article class="card">${src?`<div style="position:relative"><img src="${src}" alt="${e(r.title)}"></div>`:''}<small>${e(r.tag)}</small><h3>${e(r.title)}</h3>${safeUrl(r.url)?`<a href="${e(safeUrl(r.url))}" target="_blank" rel="noreferrer">View reference ↗</a>`:''}<p>${e(r.reason)}</p><div class="grid"><p><b>TAKE</b><br>${e(r.take).replace(/\n/g,'<br>')}</p><p><b>AVOID</b><br>${e(r.avoid).replace(/\n/g,'<br>')}</p></div>${r.annotations.length?`<p class="muted">Frame notes: ${r.annotations.map(a=>`${e(a.kind)} at ${Math.round(a.x)}%, ${Math.round(a.y)}%: ${e(a.text)}`).join(' · ')}</p>`:''}</article>`}));const logo=settings.logo&&/^data:image\/(png|jpeg|webp);base64,/.test(settings.logo)?`<img src="${settings.logo}" alt="${e(settings.brand)} logo" style="max-height:45px;max-width:150px">`:'';const script=`document.getElementById('feedback-form')?.addEventListener('submit',ev=>{ev.preventDefault();const data=new FormData(ev.target);const result={format:'style-foundry-feedback',projectId:${JSON.stringify(p.id)},version:${JSON.stringify(p.versions.length)},decision:data.get('decision'),name:data.get('name'),comment:data.get('comment'),at:new Date().toISOString()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(result,null,2)],{type:'application/json'}));a.download='style-feedback.json';a.click();document.getElementById('feedback-result').textContent='Downloaded. Please send this file back to your editor so they can record your decision.';});`;
-const body=`<main class="${cheat?'cheat-main':''}"><header>${logo}<div style="display:flex;justify-content:space-between"><small>${e(settings.brand)}</small><small>STYLE ${p.versions.length||1} / ${cheat?'EDITOR CHEAT SHEET':'CREATIVE DIRECTION'}</small></div><h1>${e(p.client)}<br><em style="color:${e(p.palette[0])};text-shadow:0 1px 1px #0005">A clear point of view.</em></h1><p>${e(p.name)} · ${e(p.type)} · ${e(p.niche)}</p><p class="muted">Direction before the timeline.</p></header><section><small>01 / THE VISION</small><h2>${cheat?'The direction':'A shared visual language.'}</h2><p style="font: ${cheat?'17':'23'}px/1.6 Georgia,serif">${e(vision)}</p></section><div class="grid"><section><h2>Priorities</h2>${p.priorities.filter(x=>x.level!=='Avoid').map((x,i)=>`<div class="priority"><small>${String(i+1).padStart(2,'0')} / ${e(x.level)}</small><br>${e(x.text)}</div>`).join('')||'<p>Priorities to be defined from intake.</p>'}</section><section><h2>Do / Don’t</h2><div class="card"><b>DO</b><ul>${p.priorities.filter(x=>x.level==='Must').map(x=>`<li>${e(x.text)}</li>`).join('')}</ul><b>DON’T</b><ul>${p.priorities.filter(x=>x.level==='Avoid').map(x=>`<li>${e(x.text)}</li>`).join('')||'<li>No avoidances recorded yet.</li>'}</ul></div></section></div><section><h2>Color system</h2><div class="palette">${p.palette.map((c,i)=>`<div style="background:${e(c)}"><span>${['PRIMARY','SECONDARY','DARK','LIGHT'][i]||'ACCENT'}<br>${e(c)}</span></div>`).join('')}</div><p><b>${e(p.background)} background.</b> ${e(p.rationale)}</p></section><section><h2>Typography</h2><div class="grid">${p.fonts.map((f,i)=>`<article class="card"><small>${['Primary / headlines','Secondary / body','Accent / details'][i]}</small><p style="font-family:'${e(f)}',${i===1?'serif':'sans-serif'};font-size:${cheat?'21':'30'}px">${e(f)}<br>Ideas worth remembering.</p></article>`).join('')}</div><p class="muted">Font files are not included. Use licensed local copies; system fallbacks may appear on other devices.</p></section>${!cheat&&refs.length?`<section><h2>Reference frames & extraction</h2>${refs.join('')}</section>`:''}<div class="grid"><section><h2>Animation approach</h2><p>${e(animationNotes(p))}</p></section><section><h2>Pacing & sound</h2><p>${e(soundNotes(p))}</p></section></div><section><h2>Timeline & trade-offs</h2><p>${e(timelineNotes(p))}</p></section>${!cheat?`<section class="card no-print"><small>LET’S ALIGN BEFORE THE EDIT</small><h2>Your direction. Your say.</h2><p>Does this feel like you? Download your decision and send it back to your editor. This file does not send anything automatically.</p><form id="feedback-form"><label>Your name<input name="name" required></label><label><input type="radio" name="decision" value="approved" required> Approve this direction</label><label><input type="radio" name="decision" value="changes" required> Request changes</label><label>Comments / adjustments<textarea name="comment" placeholder="What feels right? What should shift?"></textarea></label><button type="submit">Download feedback</button><p id="feedback-result" role="status"></p></form></section>`:''}<footer>${e(settings.brand)} / ${safeUrl(settings.portfolio)?`<a href="${e(safeUrl(settings.portfolio))}">Portfolio ↗</a>`:'Style Foundry'}<br>Direction is a foundation. Your creativity makes it yours.<div class="no-print"><button onclick="print()">Print / Save PDF</button></div></footer></main>`;
-return wrapDocument(`${p.client} / ${cheat?'Editor Cheat Sheet':'Creative Direction Brief'}`,body,script,`${cheat?'body{font-size:12px}main{padding:30px;max-width:1000px}h1{font-size:32px}h2{font-size:22px;margin-top:20px}.card{padding:12px;margin:8px 0}.palette{min-height:65px}.palette>div{padding-top:20px}header{padding-bottom:15px;margin-bottom:15px}.priority{padding:5px 0}':''}`);}
-export function guideSnapshot(p:Project){return {vision:p.vision,palette:p.palette,fonts:p.fonts,priorities:p.priorities,rationale:p.rationale,background:p.background,quantity:p.quantity,answers:p.answers,references:p.references,deadline:p.deadline,deliverables:p.deliverables,name:p.name,client:p.client,type:p.type,niche:p.niche};}
-export function versionDiff(before:string,after:string){const a=JSON.parse(before) as Record<string,unknown>,b=JSON.parse(after) as Record<string,unknown>;return [...new Set([...Object.keys(a),...Object.keys(b)])].filter(k=>JSON.stringify(a[k])!==JSON.stringify(b[k]));}
+import { contrast, hsl, fromHsl } from "./color";
+import type { Project } from "./model";
+import type { DocumentSettings } from "./documents";
+import { wrapDocument } from "./documents";
+import { db } from "./db";
+import {
+  blobData,
+  escapeHtml as e,
+  safeUrl,
+  scriptJSON,
+  cssFont,
+} from "./utils";
+export function draftVision(p: Project) {
+  const pace =
+    Number(p.answers.taste0 || 50) > 60
+      ? "energetic and intentional"
+      : "measured and confident";
+  return `${p.client}’s ${p.niche.toLowerCase()} content should feel ${pace}. Build a ${p.background === "dark" ? "dark, grounded" : "light, spacious"} visual world with ${p.fonts[0]} headlines and ${p.fonts[1]} supporting type. ${p.priorities.find((x) => x.level === "Must")?.text || "Let each animation make the central idea clearer"}. Use ${p.palette[0]} to direct attention, with ${p.palette[1]} as a supporting counterpoint. This is a creative starting point — the edit brings the taste.`;
+}
+export function guideMarkdown(p: Project, brand: string) {
+  return `# Creative Direction Brief\n## ${p.client} / ${p.name}\nPrepared by ${brand} · ${p.type} · ${p.deliverables} deliverables\n\n## Vision\n${p.vision || draftVision(p)}\n\n## Priorities\n${p.priorities.map((x, i) => `${i + 1}. [${x.level}] ${x.text}`).join("\n")}\n\n## Color system\n${p.palette.join(" · ")}\nBackground: ${p.background}\n${p.rationale}\n\n## Typography\n${p.fonts.map((f, i) => `${["Primary", "Secondary", "Accent"][i]}: ${f}`).join("\n")}\n\n## Reference extraction\n${p.references.map((r) => `### ${r.title}\n${r.url}\nClient reason: ${r.reason}\nTake: ${r.take}\nAvoid: ${r.avoid}\nAnnotations: ${r.annotations.map((a) => a.text).join("; ")}`).join("\n\n")}\n\n## Animation approach\n${animationNotes(p)}\n\n## Pacing & sound\n${soundNotes(p)}\n\n## Timeline\n${timelineNotes(p)}\n\n## Feedback\n${p.feedback || "Awaiting client feedback."}\n`;
+}
+export function animationNotes(p: Project) {
+  return `${p.quantity}% emphasis on volume. ${p.quantity >= 60 ? "Use a repeatable motion vocabulary for the body. Reserve A-tier polish for the opening hook." : "Use fewer hero animations with more detail. Let typography and pacing hold the quieter moments."} ${p.answers.hook || "Open with the central idea, clearly visualized."} ${p.answers.text || "Use short bullet reveals on key statements. Animate to clarify ideas."}`;
+}
+export function soundNotes(p: Project) {
+  const label = (key: string, a: string, b: string) =>
+    Number(p.answers[key] || 50) > 55 ? b : a;
+  return `${label("taste0", "Measured pacing with room to absorb ideas.", "Fast-paced, intentional cuts with clear visual hierarchy.")} ${label("taste3", "Music stays subtle or absent; prioritize the voice.", "Music supports the emotional rhythm beneath the voice.")} ${label("taste4", "Use restrained sound accents on meaningful changes.", "Layer sound design around transitions and idea reveals.")} ${p.answers["sound-notes"] || ""}`;
+}
+export function timelineNotes(p: Project) {
+  const days = p.deadline
+    ? Math.ceil(
+        (new Date(p.deadline + "T23:59:59").getTime() - Date.now()) / 86400000,
+      )
+    : null;
+  return `${p.deliverables} ${p.type} deliverable${p.deliverables > 1 ? "s" : ""}. ${p.deadline ? "Target delivery: " + p.deadline + "." : "Delivery date to be agreed."} ${days !== null && days <= 7 && p.quantity >= 60 ? "Tight timeline: prioritize quantity, reserve A-tier polish for the hook; approve the reusable system early." : "Lock the palette, fonts, and animation priorities before the editing pass."}`;
+}
+export async function guideDocument(
+  p: Project,
+  settings: DocumentSettings,
+  cheat = false,
+) {
+  const vision = p.vision || draftVision(p);
+  const [hue, saturation, lightness] = hsl(p.palette[0]);
+  let coverInk = p.palette[0];
+  for (let n = 0; contrast(coverInk, "#F3F1E9") < 4.5 && n < 50; n++)
+    coverInk = fromHsl(
+      hue,
+      saturation,
+      Math.max(0, lightness - (n + 1) * 0.02),
+    );
+  if (cheat)
+    return wrapDocument(
+      p.client + " / Editor cheat sheet",
+      `<main><header><small>${e(settings.brand)} / STYLE ${p.versions.length || 1} / EDITOR CHEAT SHEET</small><h1>${e(p.client)} / On the timeline.</h1><p>${e(p.name)} · ${e(p.type)}</p></header><p class="vision">${e(vision)}</p><div class="grid"><section><h2>Focus / top priorities</h2><ol>${p.priorities
+        .filter((x) => x.level !== "Avoid")
+        .slice(0, 5)
+        .map((x) => `<li><b>${e(x.level)}</b> / ${e(x.text)}</li>`)
+        .join("")}</ol><h2>Avoid</h2><ul>${p.priorities
+        .filter((x) => x.level === "Avoid")
+        .map((x) => `<li>${e(x.text)}</li>`)
+        .join(
+          "",
+        )}</ul></section><section><h2>Color system / ${e(p.background)}</h2><div class="palette">${p.palette.map((c) => `<div style="background:${e(c)}"><span>${e(c)}</span></div>`).join("")}</div><p>${e(p.rationale)}</p><h2>Type system</h2>${p.fonts.map((f, i) => `<p><small>${["PRIMARY", "SECONDARY", "ACCENT"][i]}</small> / <b>${e(f)}</b></p>`).join("")}<p class="muted">Licensed local fonts. No font files included.</p></section></div><div class="grid"><section><h2>Motion / ${p.quantity}% volume</h2><p>${e(animationNotes(p))}</p></section><section><h2>Pacing & sound</h2><p>${e(soundNotes(p))}</p></section></div><section><h2>Deadline & trade-offs</h2><p>${e(timelineNotes(p))}</p></section><footer>${e(settings.brand)} · Direction first. Creativity always.<button class="no-print" onclick="print()">Print / Save PDF</button></footer></main>`,
+      "",
+      `body{font-size:12px}main{max-width:1000px;padding:35px}h1{font-size:30px;letter-spacing:-1px}h2{font-size:18px;margin:18px 0 8px}header{margin-bottom:15px;padding-bottom:12px;border-top:4px solid ${e(settings.accent)};padding-top:20px}p{margin:8px 0}.vision{font:16px/1.5 Georgia}.grid{gap:25px}.palette{min-height:60px}.palette>div{padding:24px 4px 5px}.palette span{font-size:10px}li{margin:9px 0}footer{margin-top:15px;padding-top:10px}@media print{body{font-size:10px}h1{font-size:26px}h2{font-size:16px}.vision{font-size:13px}.grid{grid-template-columns:1fr 1fr;gap:20px}main{padding:0}header{padding-top:8px}li{margin:6px 0}}`,
+    );
+
+  const refs = await Promise.all(
+    p.references.map(async (r) => {
+      const m = r.media ? await db.media.get(r.media) : undefined;
+      const src = m?.type.startsWith("image/")
+        ? await blobData(m.thumb || m.blob)
+        : "";
+      return `<article class="card">${src ? `<div style="position:relative"><img src="${src}" alt="${e(r.title)}"></div>` : ""}<small>${e(r.tag)}</small><h3>${e(r.title)}</h3>${safeUrl(r.url) ? `<a href="${e(safeUrl(r.url))}" target="_blank" rel="noreferrer">View reference ↗</a>` : ""}<p>${e(r.reason)}</p><div class="grid"><p><b>TAKE</b><br>${e(r.take).replace(/\n/g, "<br>")}</p><p><b>AVOID</b><br>${e(r.avoid).replace(/\n/g, "<br>")}</p></div>${r.annotations.length ? `<p class="muted">Frame notes: ${r.annotations.map((a) => `${e(a.kind)} at ${Math.round(a.x)}%, ${Math.round(a.y)}%: ${e(a.text)}`).join(" · ")}</p>` : ""}</article>`;
+    }),
+  );
+  const logo =
+    settings.logo && /^data:image\/(png|jpeg|webp);base64,/.test(settings.logo)
+      ? `<img src="${settings.logo}" alt="${e(settings.brand)} logo" style="max-height:45px;max-width:150px">`
+      : "";
+  const script = `document.getElementById('feedback-form')?.addEventListener('submit',ev=>{ev.preventDefault();const data=new FormData(ev.target);const result={format:'style-foundry-feedback',projectId:${scriptJSON(p.id)},version:${JSON.stringify(p.versions.length)},decision:data.get('decision'),name:data.get('name'),comment:data.get('comment'),at:new Date().toISOString()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(result,null,2)],{type:'application/json'}));a.download='style-feedback.json';a.click();document.getElementById('feedback-result').textContent='Downloaded. Please send this file back to your editor so they can record your decision.';});`;
+  const body = `<main class="${cheat ? "cheat-main" : ""}"><header>${logo}<div style="display:flex;justify-content:space-between"><small>${e(settings.brand)}</small><small>STYLE ${p.versions.length || 1} / ${cheat ? "EDITOR CHEAT SHEET" : "CREATIVE DIRECTION"}</small></div><h1>${e(p.client)}<br><em style="color:${e(coverInk)}">A clear point of view.</em></h1><p>${e(p.name)} · ${e(p.type)} · ${e(p.niche)}</p><p class="muted">Direction before the timeline.</p></header><section><small>01 / THE VISION</small><h2>${cheat ? "The direction" : "A shared visual language."}</h2><p style="font: ${cheat ? "17" : "23"}px/1.6 Georgia,serif">${e(vision)}</p></section><div class="grid"><section><h2>Priorities</h2>${
+    p.priorities
+      .filter((x) => x.level !== "Avoid")
+      .map(
+        (x, i) =>
+          `<div class="priority"><small>${String(i + 1).padStart(2, "0")} / ${e(x.level)}</small><br>${e(x.text)}</div>`,
+      )
+      .join("") || "<p>Priorities to be defined from intake.</p>"
+  }</section><section><h2>Do / Don’t</h2><div class="card"><b>DO</b><ul>${p.priorities
+    .filter((x) => x.level === "Must")
+    .map((x) => `<li>${e(x.text)}</li>`)
+    .join("")}</ul><b>DON’T</b><ul>${
+    p.priorities
+      .filter((x) => x.level === "Avoid")
+      .map((x) => `<li>${e(x.text)}</li>`)
+      .join("") || "<li>No avoidances recorded yet.</li>"
+  }</ul></div></section></div><section><h2>Color system</h2><div class="palette">${p.palette.map((c, i) => `<div style="background:${e(c)}"><span>${["PRIMARY", "SECONDARY", "DARK", "LIGHT"][i] || "ACCENT"}<br>${e(c)}</span></div>`).join("")}</div><p><b>${e(p.background)} background.</b> ${e(p.rationale)}</p></section><section><h2>Typography</h2><div class="grid">${p.fonts.map((f, i) => `<article class="card"><small>${["Primary / headlines", "Secondary / body", "Accent / details"][i]}</small><p style="font-family:${e(cssFont(f))},${i === 1 ? "serif" : "sans-serif"};font-size:${cheat ? "21" : "30"}px">${e(f)}<br>Ideas worth remembering.</p></article>`).join("")}</div><p class="muted">Font files are not included. Use licensed local copies; system fallbacks may appear on other devices.</p></section>${!cheat && refs.length ? `<section><h2>Reference frames & extraction</h2>${refs.join("")}</section>` : ""}<div class="grid"><section><h2>Animation approach</h2><p>${e(animationNotes(p))}</p></section><section><h2>Pacing & sound</h2><p>${e(soundNotes(p))}</p></section></div><section><h2>Timeline & trade-offs</h2><p>${e(timelineNotes(p))}</p></section>${!cheat ? `<section class="card approval"><small>LET’S ALIGN BEFORE THE EDIT</small><h2>Your direction. Your say.</h2><p>Does this feel like you? Download your decision and send it back to your editor. This file does not send anything automatically.</p><form id="feedback-form"><label>Your name<input name="name" required></label><label><input type="radio" name="decision" value="approved" required> Approve this direction</label><label><input type="radio" name="decision" value="changes" required> Request changes</label><label>Comments / adjustments<textarea name="comment" placeholder="What feels right? What should shift?"></textarea></label><button type="submit">Download feedback</button><p id="feedback-result" role="status"></p></form></section>` : ""}<footer>${e(settings.brand)} / ${safeUrl(settings.portfolio) ? `<a href="${e(safeUrl(settings.portfolio))}">Portfolio ↗</a>` : "Style Foundry"}<br>Direction is a foundation. Your creativity makes it yours.<div class="no-print"><button onclick="print()">Print / Save PDF</button></div></footer></main>`;
+  return wrapDocument(
+    `${p.client} / ${cheat ? "Editor Cheat Sheet" : "Creative Direction Brief"}`,
+    body,
+    script,
+    `header{border-top:4px solid ${e(settings.accent)};padding-top:25px}h1{font-family:${e(cssFont(p.fonts[0]))},sans-serif}h2{font-family:${e(cssFont(p.fonts[1]))},serif}small{font-family:${e(cssFont(p.fonts[2]))},monospace}`,
+  );
+}
+export function guideSnapshot(p: Project) {
+  return {
+    vision: p.vision,
+    palette: p.palette,
+    fonts: p.fonts,
+    priorities: p.priorities,
+    rationale: p.rationale,
+    background: p.background,
+    quantity: p.quantity,
+    answers: p.answers,
+    references: p.references,
+    deadline: p.deadline,
+    deliverables: p.deliverables,
+    name: p.name,
+    client: p.client,
+    type: p.type,
+    niche: p.niche,
+  };
+}
+export function versionDiff(before: string, after: string) {
+  const a = JSON.parse(before) as Record<string, unknown>,
+    b = JSON.parse(after) as Record<string, unknown>;
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(
+    (k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]),
+  );
+}

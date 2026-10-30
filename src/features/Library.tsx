@@ -1,2 +1,455 @@
-import {useEffect,useRef,useState} from 'react';import {useLiveQuery} from 'dexie-react-hooks';import {useVirtualizer} from '@tanstack/react-virtual';import {Search,Plus,ArrowUpRight,Trash2} from 'lucide-react';import {db,addMedia} from '../db';import {uid} from '../model';import type {LibraryEntry} from '../model';import {MediaView,UploadButton,Modal,Field,Section} from '../components';import {notify} from '../store';import {safeUrl} from '../utils';
-export function Library(){const entries=useLiveQuery(()=>db.library.toArray())||[];const projects=useLiveQuery(()=>db.projects.toArray())||[];const settings=useLiveQuery(()=>db.settings.get('main'));const [search,setSearch]=useState('');const [category,setCategory]=useState('');const [pacing,setPacing]=useState('');const [type,setType]=useState('');const [color,setColor]=useState('');const [editing,setEditing]=useState<LibraryEntry|null>(null);const [target,setTarget]=useState('');const [progress,setProgress]=useState('');const [capture,setCapture]=useState(false);const root=useRef<HTMLDivElement>(null);const scroll=useRef<HTMLDivElement>(null);const [columns,setColumns]=useState(3);useEffect(()=>{const observer=new ResizeObserver(es=>setColumns(es[0].contentRect.width<550?1:es[0].contentRect.width<850?2:3));if(scroll.current)observer.observe(scroll.current);return()=>observer.disconnect()},[]);const filtered=entries.filter(e=>(!category||e.category===category)&&(!pacing||e.pacing===pacing)&&(!type||e.type===type)&&(!color||e.tags.toLowerCase().includes(color.toLowerCase())||e.color.toLowerCase().includes(color.toLowerCase()))&&`${e.name} ${e.tags} ${e.description}`.toLowerCase().includes(search.toLowerCase()));const virtual=useVirtualizer({count:Math.ceil(filtered.length/columns),getScrollElement:()=>scroll.current,estimateSize:()=>325,overscan:2});const importFiles=async(files:File[])=>{const media=files.filter(f=>/^(image|video)\//.test(f.type));for(let i=0;i<media.length;i++){setProgress(`Importing ${i+1} / ${media.length}`);const f=media[i];const id=await addMedia(f,f.name);await db.library.add({id:uid(),name:f.name.replace(/\.[^.]+$/,''),description:'',category:category||settings?.categories[0]||'Unsorted',tags:color||'',color:'#EFC94C',pacing:pacing||'Measured',type:type||'Long-form YouTube',source:'',notes:'',media:id});if(i%5===0)await new Promise(r=>setTimeout(r,0))}setProgress('');notify(media.length+' assets added to your library')};useEffect(()=>{const el=root.current;const handler=(e:ClipboardEvent)=>{if((e.target as HTMLElement).matches('input,textarea'))return;const files=Array.from(e.clipboardData?.files||[]);if(files.length){e.preventDefault();void importFiles(files);setCapture(true)}};el?.addEventListener('paste',handler);return()=>el?.removeEventListener('paste',handler)},[category,pacing,type,color]);const send=async(e:LibraryEntry)=>{const p=await db.projects.get(target);if(!p){notify('Choose a project first.');return}await db.projects.update(p.id,{board:[...p.board,{id:uid(),kind:e.media?'image':'note',media:e.media,x:80+(p.board.length%3)*280,y:100+Math.floor(p.board.length/3)*240,w:260,h:200,text:e.name,color:e.color}],reused:[...p.reused,`Library: ${e.name}`]});notify('Sent to '+p.client+'’s board')};return <div ref={root} tabIndex={-1} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void importFiles(Array.from(e.dataTransfer.files))}}><div className="page-heading"><div><span className="eyebrow">YOUR VISUAL VOCABULARY</span><h1>Keep the things<br/>that <em>make you look twice.</em></h1><p>A personal collection of references, details, and directions.</p></div><UploadButton label="Bulk import" accept="image/*,video/*" onFiles={importFiles}/></div><div className="row library-filters"><label className="search"><Search size={15}/><input aria-label="Search library" placeholder="Names, tags, ideas…" value={search} onChange={e=>setSearch(e.target.value)}/></label><select aria-label="Filter category" value={category} onChange={e=>setCategory(e.target.value)}><option value="">All categories</option>{settings?.categories.map(c=><option key={c}>{c}</option>)}</select><select aria-label="Filter pacing" value={pacing} onChange={e=>setPacing(e.target.value)}><option value="">Any pacing</option>{['Calm','Measured','Fast'].map(x=><option key={x}>{x}</option>)}</select><select aria-label="Filter project type" value={type} onChange={e=>setType(e.target.value)}><option value="">Any project type</option>{['Long-form YouTube','Short-form','Ad','Documentary'].map(x=><option key={x}>{x}</option>)}</select><input aria-label="Filter color mood" value={color} onChange={e=>setColor(e.target.value)} placeholder="Color / blue / #HEX"/><button onClick={()=>setEditing({id:uid(),name:'',description:'',category:settings?.categories[0]||'Unsorted',tags:'',color:'#EFC94C',pacing:'Measured',type:'Long-form YouTube',source:'',notes:''})}><Plus size={15}/>New style</button></div><div className="row" style={{margin:'20px 0'}}><select aria-label="Send to project" value={target} onChange={e=>setTarget(e.target.value)} style={{maxWidth:300}}><option value="">Send references to a project…</option>{projects.filter(p=>!p.archived).map(p=><option key={p.id} value={p.id}>{p.client} / {p.name}</option>)}</select><span className="subtle">{filtered.length} of {entries.length} styles · Drop 50 images, or paste to capture. Filters become import defaults.</span></div>{progress&&<p role="status">{progress}</p>}{capture&&<div className="notice">Captured. Press Tab to reach the first new item, or open it to tag. <button onClick={()=>setCapture(false)}>Got it</button></div>}<div className="virtual-library" ref={scroll}><div style={{height:virtual.getTotalSize(),position:'relative'}}>{virtual.getVirtualItems().map(row=><div className="library-row" key={row.key} style={{position:'absolute',top:0,left:0,width:'100%',height:325,transform:`translateY(${row.start}px)`,gridTemplateColumns:`repeat(${columns},1fr)`}}>{filtered.slice(row.index*columns,(row.index+1)*columns).map(e=><article className="library-card" key={e.id}><button className="library-image" onClick={()=>setEditing(e)} aria-label={'Edit '+e.name}><MediaView id={e.media}/></button><div><span className="eyebrow">{e.category}</span><button className="text-button" onClick={()=>setEditing(e)}>{e.name}</button><p>{e.tags||'Add tags to find this faster'}</p><button className="send-board" onClick={()=>send(e)}>Send to board <ArrowUpRight size={13}/></button></div></article>)}</div>)}</div>{!filtered.length&&<div className="empty"><h3>Your next great reference belongs here.</h3><p>Drop files or reset your filters.</p></div>}</div>{editing&&<Modal title={editing.name||'A new style'} close={()=>setEditing(null)}><form onSubmit={async ev=>{ev.preventDefault();await db.library.put(editing);setEditing(null);notify('Style saved')}}><Field label="Style name"><input autoFocus required value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})}/></Field><Field label="Tags · comma-separated"><input value={editing.tags} onChange={e=>setEditing({...editing,tags:e.target.value})} placeholder="blue, hook, minimal"/></Field><Field label="Category"><select value={editing.category} onChange={e=>setEditing({...editing,category:e.target.value})}>{settings?.categories.map(c=><option key={c}>{c}</option>)}</select></Field><div className="grid-2"><Field label="Pacing"><select value={editing.pacing} onChange={e=>setEditing({...editing,pacing:e.target.value})}>{['Calm','Measured','Fast'].map(x=><option key={x}>{x}</option>)}</select></Field><Field label="Color mood"><input type="color" value={editing.color} onChange={e=>setEditing({...editing,color:e.target.value})}/></Field></div><Field label="Project type"><select value={editing.type} onChange={e=>setEditing({...editing,type:e.target.value})}>{['Long-form YouTube','Short-form','Ad','Documentary'].map(x=><option key={x}>{x}</option>)}</select></Field><Field label="Description"><textarea value={editing.description} onChange={e=>setEditing({...editing,description:e.target.value})}/></Field><Field label="What makes it work"><textarea value={editing.notes} onChange={e=>setEditing({...editing,notes:e.target.value})}/></Field><Field label="Source link"><input type="url" value={editing.source} onChange={e=>setEditing({...editing,source:e.target.value})}/></Field><UploadButton multiple={false} label="Replace screenshot / clip" accept="image/*,video/*" onFiles={async fs=>{if(fs[0])setEditing({...editing,media:await addMedia(fs[0],fs[0].name)})}}/>{editing.source&&<a href={safeUrl(editing.source)} target="_blank" rel="noreferrer"> Open source</a>}<div className="row" style={{marginTop:20}}><button type="submit" className="primary">Save style</button><button type="button" className="danger" onClick={async()=>{if(confirm('Delete this style entry?')){await db.library.delete(editing.id);setEditing(null)}}}><Trash2 size={14}/>Delete</button></div></form></Modal>}</div>}
+import { useEffect, useRef, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { Search, Plus, ArrowUpRight, Trash2 } from "lucide-react";
+import { db, addMedia } from "../db";
+import { uid } from "../model";
+import type { LibraryEntry } from "../model";
+import { MediaView, UploadButton, Modal, Field, Section } from "../components";
+import { notify } from "../store";
+import { safeUrl } from "../utils";
+import { mediaColor } from "../media-color";
+export function Library() {
+  const entries = useLiveQuery(() => db.library.toArray()) || [];
+  const projects = useLiveQuery(() => db.projects.toArray()) || [];
+  const settings = useLiveQuery(() => db.settings.get("main"));
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [pacing, setPacing] = useState("");
+  const [type, setType] = useState("");
+  const [color, setColor] = useState("");
+  const [editing, setEditing] = useState<LibraryEntry | null>(null);
+  const [target, setTarget] = useState("");
+  const [progress, setProgress] = useState("");
+  const [capture, setCapture] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const scroll = useRef<HTMLDivElement>(null);
+  const [columns, setColumns] = useState(3);
+  useEffect(() => {
+    const observer = new ResizeObserver((es) =>
+      setColumns(
+        es[0].contentRect.width < 550
+          ? 1
+          : es[0].contentRect.width < 850
+            ? 2
+            : 3,
+      ),
+    );
+    if (scroll.current) observer.observe(scroll.current);
+    return () => observer.disconnect();
+  }, []);
+  const filtered = entries.filter(
+    (e) =>
+      (!category || e.category === category) &&
+      (!pacing || e.pacing === pacing) &&
+      (!type || e.type === type) &&
+      (!color ||
+        e.tags.toLowerCase().includes(color.toLowerCase()) ||
+        e.color.toLowerCase().includes(color.toLowerCase())) &&
+      `${e.name} ${e.tags} ${e.description}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
+  );
+  const virtual = useVirtualizer({
+    count: Math.ceil(filtered.length / columns),
+    getScrollElement: () => scroll.current,
+    estimateSize: () => 325,
+    overscan: 2,
+  });
+  const importFiles = async (files: File[], quick = false) => {
+    let last: LibraryEntry | undefined;
+    const media = files.filter((f) => /^(image|video)\//.test(f.type));
+    for (let i = 0; i < media.length; i++) {
+      setProgress(`Importing ${i + 1} / ${media.length}`);
+      const f = media[i];
+      const id = await addMedia(f, f.name);
+      const mood = await mediaColor(f);
+      const entry: LibraryEntry = {
+        id: uid(),
+        name: f.name.replace(/\.[^.]+$/, ""),
+        description: "",
+        category: category || settings?.categories[0] || "Unsorted",
+        tags: [color, mood.tag].filter(Boolean).join(", "),
+        color: mood.color,
+        pacing: pacing || "Measured",
+        type: type || "Long-form YouTube",
+        source: "",
+        notes: "",
+        media: id,
+      };
+      await db.library.add(entry);
+      last = entry;
+      if (i % 5 === 0) await new Promise((r) => setTimeout(r, 0));
+    }
+    setProgress("");
+    if (quick && last) {
+      setEditing(last);
+      setCapture(true);
+    }
+    notify(media.length + " assets added to your library");
+  };
+  useEffect(() => {
+    const el = root.current;
+    const handler = (e: ClipboardEvent) => {
+      if ((e.target as HTMLElement).matches("input,textarea")) return;
+      const files = Array.from(e.clipboardData?.files || []);
+      if (files.length) {
+        e.preventDefault();
+        void importFiles(files, true);
+      }
+    };
+    el?.addEventListener("paste", handler);
+    return () => el?.removeEventListener("paste", handler);
+  }, [category, pacing, type, color]);
+  const send = async (e: LibraryEntry) => {
+    const p = await db.projects.get(target);
+    if (!p) {
+      notify("Choose a project first.");
+      return;
+    }
+    await db.projects.update(p.id, {
+      board: [
+        ...p.board,
+        {
+          id: uid(),
+          kind: e.media ? "image" : "note",
+          media: e.media,
+          x: 80 + (p.board.length % 3) * 280,
+          y: 100 + Math.floor(p.board.length / 3) * 240,
+          w: 260,
+          h: 200,
+          text: e.name,
+          color: e.color,
+        },
+      ],
+      reused: [...p.reused, `Library: ${e.name}`],
+    });
+    notify("Sent to " + p.client + "’s board");
+  };
+  return (
+    <div
+      ref={root}
+      tabIndex={-1}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        void importFiles(Array.from(e.dataTransfer.files));
+      }}
+    >
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">YOUR VISUAL VOCABULARY</span>
+          <h1>
+            Keep the things
+            <br />
+            that <em>make you look twice.</em>
+          </h1>
+          <p>A personal collection of references, details, and directions.</p>
+        </div>
+        <UploadButton
+          label="Bulk import"
+          accept="image/*,video/*"
+          onFiles={importFiles}
+        />
+      </div>
+      <div className="row library-filters">
+        <label className="search">
+          <Search size={15} />
+          <input
+            aria-label="Search library"
+            placeholder="Names, tags, ideas…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
+        <select
+          aria-label="Filter category"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
+          <option value="">All categories</option>
+          {settings?.categories.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter pacing"
+          value={pacing}
+          onChange={(e) => setPacing(e.target.value)}
+        >
+          <option value="">Any pacing</option>
+          {["Calm", "Measured", "Fast"].map((x) => (
+            <option key={x}>{x}</option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter project type"
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+        >
+          <option value="">Any project type</option>
+          {["Long-form YouTube", "Short-form", "Ad", "Documentary"].map((x) => (
+            <option key={x}>{x}</option>
+          ))}
+        </select>
+        <input
+          aria-label="Filter color mood"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+          placeholder="Color / blue / #HEX"
+        />
+        <button
+          onClick={() =>
+            setEditing({
+              id: uid(),
+              name: "",
+              description: "",
+              category: settings?.categories[0] || "Unsorted",
+              tags: "",
+              color: "#EFC94C",
+              pacing: "Measured",
+              type: "Long-form YouTube",
+              source: "",
+              notes: "",
+            })
+          }
+        >
+          <Plus size={15} />
+          New style
+        </button>
+      </div>
+      <div className="row" style={{ margin: "20px 0" }}>
+        <select
+          aria-label="Send to project"
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          style={{ maxWidth: 300 }}
+        >
+          <option value="">Send references to a project…</option>
+          {projects
+            .filter((p) => !p.archived)
+            .map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.client} / {p.name}
+              </option>
+            ))}
+        </select>
+        <span className="subtle">
+          {filtered.length} of {entries.length} styles · Drop 50 images, or
+          paste to capture. Filters become import defaults.
+        </span>
+      </div>
+      {progress && <p role="status">{progress}</p>}
+      {capture && (
+        <div className="notice">
+          Captured. Press Tab to reach the first new item, or open it to tag.{" "}
+          <button onClick={() => setCapture(false)}>Got it</button>
+        </div>
+      )}
+      <div className="virtual-library" ref={scroll}>
+        <div style={{ height: virtual.getTotalSize(), position: "relative" }}>
+          {virtual.getVirtualItems().map((row) => (
+            <div
+              className="library-row"
+              key={row.key}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: 325,
+                transform: `translateY(${row.start}px)`,
+                gridTemplateColumns: `repeat(${columns},1fr)`,
+              }}
+            >
+              {filtered
+                .slice(row.index * columns, (row.index + 1) * columns)
+                .map((e) => (
+                  <article className="library-card" key={e.id}>
+                    <button
+                      className="library-image"
+                      onClick={() => setEditing(e)}
+                      aria-label={"Edit " + e.name}
+                    >
+                      <MediaView id={e.media} />
+                    </button>
+                    <div>
+                      <span className="eyebrow">{e.category}</span>
+                      <button
+                        className="text-button"
+                        onClick={() => setEditing(e)}
+                      >
+                        {e.name}
+                      </button>
+                      <p>{e.tags || "Add tags to find this faster"}</p>
+                      <button className="send-board" onClick={() => send(e)}>
+                        Send to board <ArrowUpRight size={13} />
+                      </button>
+                    </div>
+                  </article>
+                ))}
+            </div>
+          ))}
+        </div>
+        {!filtered.length && (
+          <div className="empty">
+            <h3>Your next great reference belongs here.</h3>
+            <p>Drop files or reset your filters.</p>
+          </div>
+        )}
+      </div>
+      {editing && (
+        <Modal
+          title={editing.name || "A new style"}
+          close={() => setEditing(null)}
+        >
+          <form
+            onSubmit={async (ev) => {
+              ev.preventDefault();
+              await db.library.put(editing);
+              setEditing(null);
+              notify("Style saved");
+            }}
+          >
+            {editing.media && (
+              <MediaView id={editing.media} full className="reference-media" />
+            )}
+            <Field label="Style name">
+              <input
+                required
+                value={editing.name}
+                onChange={(e) =>
+                  setEditing({ ...editing, name: e.target.value })
+                }
+              />
+            </Field>
+            <Field label="Tags · comma-separated">
+              <input
+                autoFocus
+                value={editing.tags}
+                onChange={(e) =>
+                  setEditing({ ...editing, tags: e.target.value })
+                }
+                placeholder="blue, hook, minimal"
+              />
+            </Field>
+            <Field label="Category">
+              <select
+                value={editing.category}
+                onChange={(e) =>
+                  setEditing({ ...editing, category: e.target.value })
+                }
+              >
+                {settings?.categories.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+            <div className="grid-2">
+              <Field label="Pacing">
+                <select
+                  value={editing.pacing}
+                  onChange={(e) =>
+                    setEditing({ ...editing, pacing: e.target.value })
+                  }
+                >
+                  {["Calm", "Measured", "Fast"].map((x) => (
+                    <option key={x}>{x}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Color mood">
+                <input
+                  type="color"
+                  value={editing.color}
+                  onChange={(e) =>
+                    setEditing({ ...editing, color: e.target.value })
+                  }
+                />
+              </Field>
+            </div>
+            <Field label="Project type">
+              <select
+                value={editing.type}
+                onChange={(e) =>
+                  setEditing({ ...editing, type: e.target.value })
+                }
+              >
+                {["Long-form YouTube", "Short-form", "Ad", "Documentary"].map(
+                  (x) => (
+                    <option key={x}>{x}</option>
+                  ),
+                )}
+              </select>
+            </Field>
+            <Field label="Description">
+              <textarea
+                value={editing.description}
+                onChange={(e) =>
+                  setEditing({ ...editing, description: e.target.value })
+                }
+              />
+            </Field>
+            <Field label="What makes it work">
+              <textarea
+                value={editing.notes}
+                onChange={(e) =>
+                  setEditing({ ...editing, notes: e.target.value })
+                }
+              />
+            </Field>
+            <Field label="Source link">
+              <input
+                type="url"
+                value={editing.source}
+                onChange={(e) =>
+                  setEditing({ ...editing, source: e.target.value })
+                }
+              />
+            </Field>
+            <UploadButton
+              multiple={false}
+              label="Replace screenshot / clip"
+              accept="image/*,video/*"
+              onFiles={async (fs) => {
+                if (fs[0])
+                  setEditing({
+                    ...editing,
+                    media: await addMedia(fs[0], fs[0].name),
+                  });
+              }}
+            />
+            {editing.source && (
+              <a
+                href={safeUrl(editing.source)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {" "}
+                Open source
+              </a>
+            )}
+            <div className="row" style={{ marginTop: 20 }}>
+              <button type="submit" className="primary">
+                Save style
+              </button>
+              <button
+                type="button"
+                className="danger"
+                onClick={async () => {
+                  if (confirm("Delete this style entry?")) {
+                    await db.library.delete(editing.id);
+                    setEditing(null);
+                  }
+                }}
+              >
+                <Trash2 size={14} />
+                Delete
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}

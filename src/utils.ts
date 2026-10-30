@@ -1,8 +1,86 @@
-import type {Project,Priority} from './model';
-import {uid} from './model';
-export function download(name:string,data:Blob|string,type='text/plain'){const url=URL.createObjectURL(data instanceof Blob?data:new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);}
-export const escapeHtml=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
-export function extract(p:Project):Priority[]{const list:Priority[]=[];const add=(text:string,level:Priority['level'])=>{if(text.trim()&&!list.some(x=>x.text.toLowerCase()===text.trim().toLowerCase()))list.push({id:uid(),text:text.trim(),level});};for(const r of p.references){r.take.split(/\n/).forEach(t=>add(t,'Must'));r.avoid.split(/\n/).forEach(t=>add(t,'Avoid'));}for(const key of ['animation','hook','text'])if(p.answers[key])add(p.answers[key],'Must');p.answers.dislikes?.split(/[\n;]/).forEach(t=>add(t,'Avoid'));if(!list.length)add('Define a clear hook and a consistent visual language','Should');return list;}
-export function duplicate(p:Project):Project {return {...structuredClone(p),id:uid(),client:p.client+' / new client',name:p.name+' / template',status:'Intake',deadline:'',answers:{},references:[],versions:[],feedback:'',checklist:[],reused:['Palette','Font stack','Board skeleton',...p.board.filter(b=>b.media).map(b=>'Board asset: '+b.text)],updated:new Date().toISOString()};}
-export const blobData=(blob:Blob)=>new Promise<string>((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=reject;r.readAsDataURL(blob);});
-export function safeUrl(url:string){try{const u=new URL(url);return ['http:','https:'].includes(u.protocol)?u.href:'';}catch{return '';}}
+import type { Project, Priority } from "./model";
+import { uid } from "./model";
+export function download(
+  name: string,
+  data: Blob | string,
+  type = "text/plain",
+) {
+  const url = URL.createObjectURL(
+    data instanceof Blob ? data : new Blob([data], { type }),
+  );
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+export const escapeHtml = (s: string) =>
+  s.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ]!,
+  );
+export function extract(p: Project): Priority[] {
+  const list: Priority[] = [];
+  const add = (text: string, level: Priority["level"]) => {
+    if (
+      text.trim() &&
+      !list.some((x) => x.text.toLowerCase() === text.trim().toLowerCase())
+    )
+      list.push({ id: uid(), text: text.trim(), level });
+  };
+  for (const r of p.references) {
+    r.take.split(/\n/).forEach((t) => add(t, "Must"));
+    r.avoid.split(/\n/).forEach((t) => add(t, "Avoid"));
+  }
+  for (const key of ["animation", "hook", "text"])
+    if (p.answers[key]) add(p.answers[key], "Must");
+  p.answers.dislikes?.split(/[\n;]/).forEach((t) => add(t, "Avoid"));
+  if (!list.length)
+    add("Define a clear hook and a consistent visual language", "Should");
+  return list;
+}
+export function duplicate(p: Project): Project {
+  return {
+    ...structuredClone(p),
+    id: uid(),
+    client: p.client + " / new client",
+    name: p.name + " / template",
+    status: "Intake",
+    deadline: "",
+    answers: {},
+    references: [],
+    versions: [],
+    feedback: "",
+    checklist: [],
+    reused: [
+      "Palette",
+      "Font stack",
+      "Board skeleton",
+      ...p.board.filter((b) => b.media).map((b) => "Board asset: " + b.text),
+    ],
+    updated: new Date().toISOString(),
+  };
+}
+export const blobData = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+export function safeUrl(url: string) {
+  try {
+    const u = new URL(url);
+    return ["http:", "https:"].includes(u.protocol) ? u.href : "";
+  } catch {
+    return "";
+  }
+}
+
+export const scriptJSON = (value: unknown) =>
+  JSON.stringify(value).replace(/</g, "\\u003c");
+export const cssFont = (value: string) =>
+  JSON.stringify(value).replace(/</g, "\\3c ");

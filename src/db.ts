@@ -1,9 +1,238 @@
-import Dexie,{type EntityTable} from 'dexie';
-import type {Project,Media,LibraryEntry,FontEntry,Settings,Template} from './model';
-import {newProject,uid,categories} from './model';
-export const db=new Dexie('style-foundry') as Dexie & {projects:EntityTable<Project,'id'>;media:EntityTable<Media,'id'>;library:EntityTable<LibraryEntry,'id'>;fonts:EntityTable<FontEntry,'id'>;settings:EntityTable<Settings,'id'>;templates:EntityTable<Template,'id'>};
-db.version(1).stores({projects:'id,client,status,archived,updated',media:'id',library:'id,category,color,pacing,type',fonts:'id,name,favorite',settings:'id',templates:'id'});
-export async function seed(){if(await db.settings.get('main'))return; const p=newProject('Marcus Cole');p.name='The business of being different';p.deadline=new Date(Date.now()+86400000*7).toISOString().slice(0,10);p.status='Style Draft';p.fonts=['Arial','Georgia','Courier New'];p.vision='A quiet confidence. Dark documentary storytelling meets precise, purposeful motion. Warm yellow brings the insight; cool blue gives the numbers room to breathe.';p.rationale='Marcus’s charcoal studio calls for dark animation backgrounds. Signal yellow highlights the idea; blue adds a measured, analytical counterpoint.';p.answers={taste0:'65',taste1:'75',taste2:'60',taste3:'40',taste4:'55',taste5:'20',taste6:'10',taste7:'10',taste8:'25',animation:'Enough motion to clarify each idea. Reserve the most detailed work for the hook.',hook:'A-tier visual metaphor in the first 20 seconds.',text:'Short bullet points on important lines; visual explanations for business models.',dislikes:'No cartoony intros. No constant punch-in zooms.'};p.priorities=[{id:uid(),text:'A-tier hook animation: make the central idea tangible',level:'Must'},{id:uid(),text:'Visualize business ideas, not decorative movement',level:'Must'},{id:uid(),text:'Bullet points for the lines worth remembering',level:'Must'},{id:uid(),text:'Measured pacing, warm textures, subtle sound design',level:'Should'},{id:uid(),text:'Cartoony intros and constant heavy zooms',level:'Avoid'}];p.checklist=['Questionnaire sent','Answers returned','References reviewed'];
-const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="640"><rect width="1000" height="640" fill="#14181c"/><path d="M0 520L1000 100" stroke="#30363d"/><circle cx="730" cy="290" r="160" fill="#EFC94C"/><circle cx="730" cy="290" r="90" fill="#14181c"/><text x="70" y="130" fill="#EFC94C" font-family="sans-serif" font-size="16" letter-spacing="8">THE COMPOUND EFFECT</text><text x="70" y="310" fill="#F0EDE5" font-family="Georgia" font-size="74">Small moves.</text><text x="70" y="395" fill="#F0EDE5" font-family="Georgia" font-size="74">Unfair advantage.</text><rect x="70" y="470" width="170" height="5" fill="#527DDA"/><text x="70" y="570" fill="#8f979f" font-family="sans-serif" font-size="18">ORIGINAL DIRECTION STUDY / STYLE FOUNDRY</text></svg>`;
-const mid=uid();await db.media.add({id:mid,blob:new Blob([svg],{type:'image/svg+xml'}),name:'Original direction study',type:'image/svg+xml'});p.board=[{id:uid(),kind:'image',x:50,y:100,w:500,h:320,text:'Original direction study',color:'#EFC94C',media:mid},{id:uid(),kind:'note',x:590,y:100,w:260,h:180,text:'The direction\nQuiet confidence.\nPurposeful motion.\nIdeas before decoration.',color:'#EFC94C'},{id:uid(),kind:'swatch',x:590,y:320,w:120,h:100,text:'#EFC94C',color:'#EFC94C'},{id:uid(),kind:'swatch',x:730,y:320,w:120,h:100,text:'#527DDA',color:'#527DDA'}];await db.library.add({id:uid(),name:'Compound effect / title study',description:'An original typographic direction study.',category:'Dark documentary',tags:'yellow, blue, documentary, typography',color:'#EFC94C',pacing:'Measured',type:'Long-form YouTube',source:'',notes:'Scale and negative space keep the central idea clear.',media:mid});p.versions=[{id:uid(),label:'Style v1 · initial direction',at:new Date().toISOString(),content:JSON.stringify({vision:p.vision,palette:p.palette,fonts:p.fonts,priorities:p.priorities})}];await db.transaction('rw',db.projects,db.settings,async()=>{await db.projects.add(p);await db.settings.put({id:'main',brand:'Adedoyin Edits',accent:'#EFC94C',portfolio:'',theme:'dark',categories});});}
-export async function addMedia(file:Blob,name='Pasted image'){const id=uid();let thumb:Blob|undefined;if(file.type.startsWith('image/') && file.type!=='image/svg+xml'){try{const bitmap=await createImageBitmap(file);const c=document.createElement('canvas');const scale=Math.min(1,480/bitmap.width);c.width=bitmap.width*scale;c.height=bitmap.height*scale;c.getContext('2d')!.drawImage(bitmap,0,0,c.width,c.height);thumb=await new Promise<Blob|undefined>(r=>c.toBlob(b=>r(b||undefined),'image/webp',.8));bitmap.close();}catch{/* Original remains available. */}}await db.media.add({id,blob:file,name,type:file.type,thumb});return id;}
+import Dexie, { type EntityTable } from "dexie";
+import type {
+  Project,
+  Media,
+  LibraryEntry,
+  FontEntry,
+  Settings,
+  Template,
+} from "./model";
+import { newProject, uid, categories } from "./model";
+export const db = new Dexie("style-foundry") as Dexie & {
+  projects: EntityTable<Project, "id">;
+  media: EntityTable<Media, "id">;
+  library: EntityTable<LibraryEntry, "id">;
+  fonts: EntityTable<FontEntry, "id">;
+  settings: EntityTable<Settings, "id">;
+  templates: EntityTable<Template, "id">;
+};
+db.version(1).stores({
+  projects: "id,client,status,archived,updated",
+  media: "id",
+  library: "id,category,color,pacing,type",
+  fonts: "id,name,favorite",
+  settings: "id",
+  templates: "id",
+});
+export async function seed() {
+  if (await db.settings.get("main")) return;
+  const p = newProject("Marcus Cole");
+  p.name = "The business of being different";
+  p.deadline = new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 10);
+  p.status = "Style Draft";
+  p.fonts = ["Arial", "Georgia", "Courier New"];
+  p.vision =
+    "A quiet confidence. Dark documentary storytelling meets precise, purposeful motion. Warm yellow brings the insight; cool blue gives the numbers room to breathe.";
+  p.rationale =
+    "Marcus’s charcoal studio calls for dark animation backgrounds. Signal yellow highlights the idea; blue adds a measured, analytical counterpoint.";
+  p.answers = {
+    taste0: "65",
+    taste1: "75",
+    taste2: "60",
+    taste3: "40",
+    taste4: "55",
+    taste5: "20",
+    taste6: "10",
+    taste7: "10",
+    taste8: "25",
+    animation:
+      "Enough motion to clarify each idea. Reserve the most detailed work for the hook.",
+    hook: "A-tier visual metaphor in the first 20 seconds.",
+    text: "Short bullet points on important lines; visual explanations for business models.",
+    dislikes: "No cartoony intros. No constant punch-in zooms.",
+  };
+  p.priorities = [
+    {
+      id: uid(),
+      text: "A-tier hook animation: make the central idea tangible",
+      level: "Must",
+    },
+    {
+      id: uid(),
+      text: "Visualize business ideas, not decorative movement",
+      level: "Must",
+    },
+    {
+      id: uid(),
+      text: "Bullet points for the lines worth remembering",
+      level: "Must",
+    },
+    {
+      id: uid(),
+      text: "Measured pacing, warm textures, subtle sound design",
+      level: "Should",
+    },
+    {
+      id: uid(),
+      text: "Cartoony intros and constant heavy zooms",
+      level: "Avoid",
+    },
+  ];
+  p.checklist = [
+    "Questionnaire sent",
+    "Answers returned",
+    "References reviewed",
+  ];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="640"><rect width="1000" height="640" fill="#14181c"/><path d="M0 520L1000 100" stroke="#30363d"/><circle cx="730" cy="290" r="160" fill="#EFC94C"/><circle cx="730" cy="290" r="90" fill="#14181c"/><text x="70" y="130" fill="#EFC94C" font-family="sans-serif" font-size="16" letter-spacing="8">THE COMPOUND EFFECT</text><text x="70" y="310" fill="#F0EDE5" font-family="Georgia" font-size="74">Small moves.</text><text x="70" y="395" fill="#F0EDE5" font-family="Georgia" font-size="74">Unfair advantage.</text><rect x="70" y="470" width="170" height="5" fill="#527DDA"/><text x="70" y="570" fill="#8f979f" font-family="sans-serif" font-size="18">ORIGINAL DIRECTION STUDY / STYLE FOUNDRY</text></svg>`;
+  const mid = uid();
+  await db.media.add({
+    id: mid,
+    blob: new Blob([svg], { type: "image/svg+xml" }),
+    name: "Original direction study",
+    type: "image/svg+xml",
+  });
+  p.references = [
+    {
+      id: uid(),
+      title: "Original direction study / compound effect",
+      url: "",
+      reason:
+        "The restrained palette and generous space let a big business idea feel considered.",
+      take: "Editorial scale and negative space\nYellow for insight; blue for analytical detail",
+      avoid: "Decorative motion without an idea",
+      tag: "typography",
+      media: mid,
+      annotations: [
+        {
+          id: uid(),
+          kind: "note",
+          x: 7,
+          y: 20,
+          text: "Keep one idea in focus.",
+        },
+      ],
+    },
+  ];
+  p.answers["sound-notes"] =
+    "Soft percussive accents on key reveals. Leave breathing room after important statements.";
+  const environmentId = uid();
+  await db.media.add({
+    id: environmentId,
+    name: "Original charcoal studio sketch",
+    type: "image/svg+xml",
+    blob: new Blob(
+      [
+        `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500"><rect width="900" height="500" fill="#171b20"/><rect x="50" y="40" width="480" height="350" fill="#252d36"/><path d="M80 70H500M80 130H500M80 190H500M80 250H500M80 310H500" stroke="#3a4350" stroke-width="3"/><rect x="620" y="100" width="30" height="250" rx="15" fill="#EFC94C"/><rect y="390" width="900" height="110" fill="#101216"/><rect x="200" y="350" width="500" height="25" fill="#443d30"/><text x="50" y="450" fill="#8997a7" font-family="Arial" font-size="16">ORIGINAL CLIENT ENVIRONMENT STUDY / CHARCOAL + WARM PRACTICAL LIGHT</text></svg>`,
+      ],
+      { type: "image/svg+xml" },
+    ),
+  });
+  p.environment = environmentId;
+  p.board = [
+    {
+      id: uid(),
+      kind: "image",
+      x: 50,
+      y: 100,
+      w: 500,
+      h: 320,
+      text: "Original direction study",
+      color: "#EFC94C",
+      media: mid,
+    },
+    {
+      id: uid(),
+      kind: "note",
+      x: 590,
+      y: 100,
+      w: 260,
+      h: 180,
+      text: "The direction\nQuiet confidence.\nPurposeful motion.\nIdeas before decoration.",
+      color: "#EFC94C",
+    },
+    {
+      id: uid(),
+      kind: "swatch",
+      x: 590,
+      y: 320,
+      w: 120,
+      h: 100,
+      text: "#EFC94C",
+      color: "#EFC94C",
+    },
+    {
+      id: uid(),
+      kind: "swatch",
+      x: 730,
+      y: 320,
+      w: 120,
+      h: 100,
+      text: "#527DDA",
+      color: "#527DDA",
+    },
+  ];
+  await db.library.add({
+    id: uid(),
+    name: "Compound effect / title study",
+    description: "An original typographic direction study.",
+    category: "Dark documentary",
+    tags: "yellow, blue, documentary, typography",
+    color: "#EFC94C",
+    pacing: "Measured",
+    type: "Long-form YouTube",
+    source: "",
+    notes: "Scale and negative space keep the central idea clear.",
+    media: mid,
+  });
+  p.versions = [
+    {
+      id: uid(),
+      label: "Style v1 · initial direction",
+      at: new Date().toISOString(),
+      content: JSON.stringify({
+        vision: p.vision,
+        palette: p.palette,
+        fonts: p.fonts,
+        priorities: p.priorities,
+        references: p.references,
+        answers: p.answers,
+        quantity: p.quantity,
+        rationale: p.rationale,
+        background: p.background,
+      }),
+    },
+  ];
+  await db.transaction("rw", db.projects, db.settings, async () => {
+    await db.projects.add(p);
+    await db.settings.put({
+      id: "main",
+      brand: "Adedoyin Edits",
+      accent: "#EFC94C",
+      portfolio: "",
+      theme: "dark",
+      categories,
+    });
+  });
+}
+export async function addMedia(file: Blob, name = "Pasted image") {
+  const id = uid();
+  let thumb: Blob | undefined;
+  if (file.type.startsWith("image/") && file.type !== "image/svg+xml") {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const c = document.createElement("canvas");
+      const scale = Math.min(1, 480 / bitmap.width);
+      c.width = bitmap.width * scale;
+      c.height = bitmap.height * scale;
+      c.getContext("2d")!.drawImage(bitmap, 0, 0, c.width, c.height);
+      thumb = await new Promise<Blob | undefined>((r) =>
+        c.toBlob((b) => r(b || undefined), "image/webp", 0.8),
+      );
+      bitmap.close();
+    } catch {
+      /* Original remains available. */
+    }
+  }
+  await db.media.add({ id, blob: file, name, type: file.type, thumb });
+  return id;
+}
